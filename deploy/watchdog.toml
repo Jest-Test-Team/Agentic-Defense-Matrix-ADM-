@@ -1,0 +1,76 @@
+# ADM Watchdog Configuration
+# Platform-specific settings are applied at build time
+
+[daemon]
+# Socket path for Gateway communication
+socket_path = "/var/run/adm/watchdog.sock"
+# Log level: trace, debug, info, warn, error
+log_level = "info"
+# Telemetry export interval
+telemetry_interval_ms = 1000
+
+[platform.darwin]
+# macOS Endpoint Security
+# Bundle identifier for the watchdog process
+bundle_id = "com.adm.watchdog"
+# Events to monitor
+events = [
+    "ES_EVENT_TYPE_AUTH_EXEC",
+    "ES_EVENT_TYPE_AUTH_CONNECT",
+    "ES_EVENT_TYPE_AUTH_FILE_OPEN",
+    "ES_EVENT_TYPE_AUTH_KEXTLOAD",
+]
+
+[platform.windows]
+# Windows Filtering Platform
+# Filter engine sub-layer name
+sublayer_name = "ADM Watchdog Filter"
+# WFP filter layers
+filter_layers = [
+    "FWPM_LAYER_ALE_AUTH_CONNECT_V4",
+    "FWPM_LAYER_ALE_AUTH_CONNECT_V6",
+    "FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4",
+    "FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6",
+    "FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT",
+]
+
+[egress]
+# Default policy: deny all outbound
+default_policy = "deny"
+# Whitelist of allowed external endpoints (CIDR or hostname)
+whitelist = []
+# DNS interception enabled
+intercept_dns = true
+# Rate limit for DNS queries per second
+dns_rate_limit = 10
+
+[telemetry]
+# OTLP endpoint for traces and metrics
+otlp_endpoint = "http://localhost:4317"
+# Service name for tracing
+service_name = "adm-watchdog"
+# Export interval
+export_interval_ms = 5000
+# Enable metrics
+enable_metrics = true
+
+[process_monitor]
+# Whitelist of allowed processes in agent containers
+allowed_binaries = [
+    "/usr/bin/python3",
+    "/usr/bin/python",
+    "/usr/bin/node",
+    "/usr/bin/java",
+    "/bin/sh",
+    "/bin/bash",
+]
+# Blocked binary patterns (regex)
+blocked_patterns = [
+    "bash\\s+-i",
+    "nc\\s+.*-e",
+    "curl\\s+.*\\|.*sh",
+    "wget\\s+.*\\|.*sh",
+    "python.*\\s+-c\\s+.*import.*socket",
+]
+# Maximum processes per session
+max_processes_per_session = 50

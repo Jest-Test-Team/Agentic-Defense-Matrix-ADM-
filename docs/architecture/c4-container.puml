@@ -1,0 +1,41 @@
+@startuml ADM C4 Container Diagram
+!include <C4/C4_Context>
+
+title Agentic Defense Matrix (ADM) - Container Diagram
+
+Person(user, "User", "External client interacting with ADM agents")
+
+System_Boundary(adm, "Agentic Defense Matrix") {
+    Container(gateway, "API Gateway", "Go + Echo", "Handles requests, rate limiting, semantic analysis, routing")
+    Container(planner, "Planner Agent", "Go + gRPC", "Decomposes tasks into tool-calling plans")
+    Container(executor, "Executor Agent", "Go + Docker", "Executes tools in ephemeral sandboxes")
+    Container(summarizer, "Summarizer Agent", "Go + gRPC", "Generates conversation summaries")
+    Container(siem, "SIEM Engine", "Go + Redis", "Correlates events, triggers alerts")
+    Container(watchdog, "Watchdog Daemon", "Rust", "Endpoint monitoring, syscall interception")
+    Container(opa, "OPA Policy Engine", "Rego", "Enforces agent permissions and egress rules")
+    Container(control_plane, "Control Plane", "Go", "Auto-update server, version management")
+    ContainerDb(redis, "Redis", "Redis 7", "SIEM hot path, streams, event storage")
+    Container(ollama, "Ollama", "LLM Runtime", "Local LLM inference (llama3.1, qwen2.5, mistral)")
+    Container(otel, "OTel Collector", "OpenTelemetry", "Traces, metrics, logs aggregation")
+}
+
+System_Ext(github, "GitHub Releases", "Version manifests and binaries for auto-update")
+
+Rel(user, gateway, "HTTP/gRPC", "8080")
+Rel(gateway, planner, "gRPC", "9081")
+Rel(gateway, executor, "gRPC", "9082")
+Rel(gateway, summarizer, "gRPC", "9083")
+Rel(gateway, opa, "HTTP", "8181")
+Rel(planner, ollama, "HTTP", "11434")
+Rel(executor, ollama, "HTTP", "11434")
+Rel(summarizer, ollama, "HTTP", "11434")
+Rel(executor, watchdog, "Unix Socket")
+Rel(watchdog, siem, "gRPC", "9091")
+Rel(siem, redis, "RESP", "6379")
+Rel(gateway, otel, "OTLP", "4317")
+Rel(siem, otel, "OTLP", "4317")
+Rel(watchdog, otel, "OTLP", "4317")
+Rel(control_plane, github, "HTTPS", "443")
+
+LAYOUT_WITH_LEGEND()
+@enduml

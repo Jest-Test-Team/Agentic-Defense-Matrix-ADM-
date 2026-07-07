@@ -1,0 +1,33 @@
+{
+  "type": "function",
+  "function": {
+    "name": "read_file",
+    "description": "Read the contents of a file from the filesystem within the sandboxed environment.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Absolute or relative path to the file to read"
+        },
+        "encoding": {
+          "type": "string",
+          "enum": ["utf-8", "base64"],
+          "description": "File encoding. Default is utf-8.",
+          "default": "utf-8"
+        },
+        "offset": {
+          "type": "integer",
+          "description": "Byte offset to start reading from. Default is 0.",
+          "default": 0
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Maximum bytes to read. Default is 64KB.",
+          "default": 65536
+        }
+      },
+      "required": ["path"]
+    }
+  }
+}

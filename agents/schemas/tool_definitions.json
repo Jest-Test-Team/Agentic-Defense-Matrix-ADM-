@@ -1,0 +1,205 @@
+{
+  "description": "Combined OpenAI-compatible tool schemas for all ADM agents",
+  "version": "0.1.0",
+  "agents": {
+    "planner": {
+      "description": "Planning agent tools for task decomposition and execution strategy",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "description": "Read the contents of a file from the filesystem within the sandboxed environment.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Absolute or relative path to the file to read"
+                },
+                "encoding": {
+                  "type": "string",
+                  "enum": ["utf-8", "base64"],
+                  "default": "utf-8"
+                },
+                "offset": { "type": "integer", "default": 0 },
+                "limit": { "type": "integer", "default": 65536 }
+              },
+              "required": ["path"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "list_directory",
+            "description": "List files and subdirectories in a directory within the sandbox.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Directory path to list"
+                },
+                "recursive": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to list recursively"
+                }
+              },
+              "required": ["path"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "query_knowledge_base",
+            "description": "Search the RAG knowledge base for relevant context. Returns top-K relevant chunks.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Natural language search query"
+                },
+                "top_k": {
+                  "type": "integer",
+                  "default": 5,
+                  "description": "Number of results to return"
+                },
+                "filter": {
+                  "type": "object",
+                  "description": "Metadata filters as key-value pairs",
+                  "additionalProperties": { "type": "string" }
+                }
+              },
+              "required": ["query"]
+            }
+          }
+        }
+      ]
+    },
+    "executor": {
+      "description": "Execution agent tools for running commands and operations in sandboxed environments",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "run_command",
+            "description": "Execute a shell command within the sandboxed container with resource limits.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Shell command to execute"
+                },
+                "working_dir": {
+                  "type": "string",
+                  "default": "/tmp"
+                },
+                "timeout_seconds": {
+                  "type": "integer",
+                  "default": 30,
+                  "maximum": 300
+                },
+                "env": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              },
+              "required": ["command"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "http_request",
+            "description": "Make an HTTP request to an approved external API endpoint. Requires explicit allowlisting.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+                  "description": "HTTP method"
+                },
+                "url": {
+                  "type": "string",
+                  "description": "Target URL (must be in egress whitelist)"
+                },
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                },
+                "body": {
+                  "type": "string",
+                  "description": "Request body as JSON string"
+                }
+              },
+              "required": ["method", "url"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "write_file",
+            "description": "Write content to a file within the sandbox. Only allowed in /tmp and /workspace directories.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "File path to write"
+                },
+                "content": {
+                  "type": "string",
+                  "description": "Content to write to the file"
+                },
+                "mode": {
+                  "type": "integer",
+                  "default": 420,
+                  "description": "File permissions in octal (default 0644)"
+                }
+              },
+              "required": ["path", "content"]
+            }
+          }
+        }
+      ]
+    },
+    "summarizer": {
+      "description": "Summarizer agent tools for conversation analysis and summarization",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "read_conversation",
+            "description": "Read conversation history for a given session.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "session_id": {
+                  "type": "string",
+                  "description": "Session identifier"
+                },
+                "include_tool_results": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "max_messages": {
+                  "type": "integer",
+                  "default": 100
+                }
+              },
+              "required": ["session_id"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

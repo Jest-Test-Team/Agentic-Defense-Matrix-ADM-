@@ -1,0 +1,60 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+adm-gateway
+adm-siem
+adm-watchdog
+adm-planner
+adm-executor
+adm-summarizer
+adm-control-plane
+*.msi
+*.pkg
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Rust
+daemon_watchdog/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment / Secrets
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.cert
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# OTel
+*.otel
+
+# Temp
+tmp/
+temp/
+.cache/

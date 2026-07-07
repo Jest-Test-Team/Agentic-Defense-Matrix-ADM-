@@ -1,0 +1,21 @@
+version: v2
+modules:
+  - path: pkg/proto
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - STANDARD
+  except:
+    - UNARY_RPC
+    - COMMENT_FIELD
+breaking:
+  use:
+    - FILE
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: pkg/proto
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: pkg/proto
+    opt: paths=source_relative

@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/adm/pkg/proto";
+
+// SIEMService handles event ingestion and correlation
+service SIEMService {
+  // IngestEvent receives a security event
+  rpc IngestEvent(SecurityEvent) returns (IngestResponse);
+
+  // IngestBatch receives multiple events
+  rpc IngestBatch(IngestBatchRequest) returns (IngestBatchResponse);
+
+  // QueryEvents queries events by criteria
+  rpc QueryEvents(QueryEventsRequest) returns (QueryEventsResponse);
+
+  // GetActiveAlerts returns currently active alerts
+  rpc GetActiveAlerts(GetAlertsRequest) returns (GetAlertsResponse);
+
+  // AddCorrelationRule adds a new detection rule
+  rpc AddCorrelationRule(CorrelationRule) returns (RuleResponse);
+
+  // GetCorrelationRules lists all rules
+  rpc GetCorrelationRules(GetRulesRequest) returns (GetRulesResponse);
+
+  // GetMetrics returns SIEM operational metrics
+  rpc GetMetrics(GetMetricsRequest) returns (SIEMMetrics);
+
+  // HealthCheck returns service health
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message SecurityEvent {
+  string event_id = 1;
+  string session_id = 2;
+  string source = 3;           // gateway, watchdog, agent
+  string event_type = 4;       // prompt_injection, syscall_anomaly, egress_violation, etc.
+  Severity severity = 5;
+  int64 timestamp_ns = 6;
+  map<string, string> labels = 7;
+  string payload = 8;          // JSON payload
+  string source_ip = 9;
+  string agent_id = 10;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_LOW = 2;
+  SEVERITY_MEDIUM = 3;
+  SEVERITY_HIGH = 4;
+  SEVERITY_CRITICAL = 5;
+}
+
+message IngestResponse {
+  bool accepted = 1;
+  string event_id = 2;
+  repeated CorrelationMatch matched_rules = 3;
+}
+
+message IngestBatchRequest {
+  repeated SecurityEvent events = 1;
+}
+
+message IngestBatchResponse {
+  int32 accepted_count = 1;
+  int32 rejected_count = 2;
+  repeated string rejected_ids = 3;
+}
+
+message CorrelationMatch {
+  string rule_id = 1;
+  string rule_name = 2;
+  double confidence = 3;
+  Severity alert_severity = 4;
+}
+
+message QueryEventsRequest {
+  int64 start_time_ns = 1;
+  int64 end_time_ns = 2;
+  string session_id = 3;
+  string event_type = 4;
+  Severity min_severity = 5;
+  int32 limit = 6;
+  string cursor = 7; // for pagination
+}
+
+message QueryEventsResponse {
+  repeated SecurityEvent events = 1;
+  int32 total_count = 2;
+  string next_cursor = 3;
+}
+
+message GetAlertsRequest {
+  Severity min_severity = 1;
+  bool include_resolved = 2;
+}
+
+message GetAlertsResponse {
+  repeated Alert alerts = 1;
+}
+
+message Alert {
+  string alert_id = 1;
+  string rule_id = 2;
+  string rule_name = 3;
+  Severity severity = 4;
+  int64 created_at_ns = 5;
+  int64 resolved_at_ns = 6;
+  repeated string event_ids = 7;
+  string description = 8;
+  AlertStatus status = 9;
+}
+
+enum AlertStatus {
+  ALERT_STATUS_UNSPECIFIED = 0;
+  ALERT_STATUS_ACTIVE = 1;
+  ALERT_STATUS_INVESTIGATING = 2;
+  ALERT_STATUS_RESOLVED = 3;
+  ALERT_STATUS_FALSE_POSITIVE = 4;
+}
+
+message CorrelationRule {
+  string rule_id = 1;
+  string name = 2;
+  string description = 3;
+  string condition = 4;        // YAML/JSON condition definition
+  Severity alert_severity = 5;
+  int32 window_seconds = 6;    // time window for correlation
+  int32 threshold = 7;         // event count threshold
+  bool enabled = 8;
+  repeated string event_types = 9; // event types this rule applies to
+}
+
+message RuleResponse {
+  bool success = 1;
+  string rule_id = 2;
+  string message = 3;
+}
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  repeated CorrelationRule rules = 1;
+}
+
+message GetMetricsRequest {}
+
+message SIEMMetrics {
+  int64 events_ingested_total = 1;
+  int64 events_per_second = 2;
+  int64 ring_buffer_capacity = 3;
+  int64 ring_buffer_used = 4;
+  int64 ring_buffer_dropped = 5;
+  int64 active_alerts = 6;
+  int64 rules_evaluated_total = 7;
+  double avg_correlation_latency_ms = 8;
+  int64 redis_stream_length = 9;
+  int64 retention_hot_events = 10;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  int64 uptime_seconds = 3;
+}

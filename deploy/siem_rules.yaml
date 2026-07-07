@@ -1,0 +1,139 @@
+# ADM SIEM Correlation Rules
+# Based on MITRE ATLAS and OWASP LLM Top 10
+
+rules:
+  - id: rule_001
+    name: "High-Frequency Prompt Injection"
+    description: "Detects automated prompt injection attempts via frequency analysis"
+    event_types:
+      - prompt_injection
+    severity: high
+    window_seconds: 60
+    threshold: 5
+    enabled: true
+    mitre_ref: "AML.T0051"
+    owasp_ref: "LLM01"
+
+  - id: rule_002
+    name: "Tool Chain Anomaly"
+    description: "Detects suspicious tool call sequences (e.g., read_secret -> external_send)"
+    event_types:
+      - tool_call
+    severity: critical
+    window_seconds: 10
+    threshold: 2
+    enabled: true
+    mitre_ref: "AML.T0052"
+    condition:
+      sequence:
+        - event_type: tool_call
+          tool_name: "read_file"
+          path_pattern: ".*secret.*"
+        - event_type: tool_call
+          tool_name: "http_request"
+
+  - id: rule_003
+    name: "Unauthorized Process Spawn"
+    description: "Detects unauthorized process execution in agent containers"
+    event_types:
+      - syscall_anomaly
+    severity: high
+    window_seconds: 5
+    threshold: 1
+    enabled: true
+    mitre_ref: "AML.T0057"
+    condition:
+      process_not_in_allowlist: true
+
+  - id: rule_004
+    name: "RAG Poisoning"
+    description: "Detects potential RAG knowledge base poisoning"
+    event_types:
+      - rag_query
+      - egress_violation
+    severity: critical
+    window_seconds: 30
+    threshold: 2
+    enabled: true
+    mitre_ref: "AML.T0054"
+    owasp_ref: "LLM05"
+
+  - id: rule_005
+    name: "Reverse Shell Indicators"
+    description: "Detects reverse shell patterns via process + network correlation"
+    event_types:
+      - process_exec
+      - egress_attempt
+    severity: critical
+    window_seconds: 5
+    threshold: 2
+    enabled: true
+    mitre_ref: "AML.T0057"
+    condition:
+      correlation:
+        - event_type: process_exec
+          process_pattern: "bash.*-i"
+        - event_type: egress_attempt
+          port: 4444
+
+  - id: rule_006
+    name: "Excessive API Rate"
+    description: "Detects automated high-frequency API probing"
+    event_types:
+      - api_request
+    severity: medium
+    window_seconds: 60
+    threshold: 100
+    enabled: true
+    owasp_ref: "LLM09"
+
+  - id: rule_007
+    name: "Data Exfiltration Attempt"
+    description: "Detects data exfiltration via DNS or HTTP"
+    event_types:
+      - egress_violation
+      - data_transfer
+    severity: critical
+    window_seconds: 30
+    threshold: 1
+    enabled: true
+    mitre_ref: "AML.T0059"
+    owasp_ref: "LLM06"
+
+  - id: rule_008
+    name: "Token Replay Attack"
+    description: "Detects replayed or expired authentication tokens"
+    event_types:
+      - auth_failure
+    severity: high
+    window_seconds: 300
+    threshold: 3
+    enabled: true
+
+  - id: rule_009
+    name: "Container Escape Attempt"
+    description: "Detects attempts to escape container sandbox"
+    event_types:
+      - syscall_anomaly
+    severity: critical
+    window_seconds: 10
+    threshold: 1
+    enabled: true
+    condition:
+      process_pattern: "mount.*host"
+      or:
+        - syscall: "unshare"
+        - syscall: "nsenter"
+
+  - id: rule_010
+    name: "Privilege Escalation"
+    description: "Detects privilege escalation attempts"
+    event_types:
+      - syscall_anomaly
+      - process_exec
+    severity: critical
+    window_seconds: 30
+    threshold: 1
+    enabled: true
+    condition:
+      process_pattern: "sudo|chmod.*777|setuid"

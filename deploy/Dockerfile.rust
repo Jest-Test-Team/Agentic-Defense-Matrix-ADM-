@@ -1,0 +1,39 @@
+# Multi-stage Dockerfile for Rust watchdog daemon
+FROM rust:1.80-bookworm AS builder
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Cache dependencies
+COPY daemon_watchdog/Cargo.toml daemon_watchdog/Cargo.lock ./
+RUN mkdir -p daemon_watchdog/src && \
+    echo "fn main() {}" > daemon_watchdog/src/main.rs && \
+    cd daemon_watchdog && cargo build --release && \
+    rm -rf src
+
+# Build the actual binary
+COPY daemon_watchdog/ ./daemon_watchdog/
+RUN cd daemon_watchdog && cargo build --release
+
+# Runtime
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r adm && useradd -r -g adm adm
+
+COPY --from=builder /app/daemon_watchdog/target/release/adm-watchdog /usr/local/bin/adm-watchdog
+
+RUN mkdir -p /var/run/adm /etc/adm && \
+    chown -R adm:adm /var/run/adm /etc/adm
+
+USER adm
+
+ENTRYPOINT ["adm-watchdog"]

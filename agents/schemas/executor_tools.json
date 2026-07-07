@@ -1,0 +1,33 @@
+{
+  "type": "function",
+  "function": {
+    "name": "run_command",
+    "description": "Execute a shell command within the sandboxed container. Commands run in isolation with resource limits.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The shell command to execute"
+        },
+        "working_dir": {
+          "type": "string",
+          "description": "Working directory for command execution",
+          "default": "/tmp"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "description": "Maximum execution time in seconds. Default 30, max 300.",
+          "default": 30,
+          "maximum": 300
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables as key-value pairs",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "required": ["command"]
+    }
+  }
+}

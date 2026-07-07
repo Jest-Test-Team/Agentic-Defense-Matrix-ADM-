@@ -1,0 +1,289 @@
+version: "3.9"
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: adm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: adm-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - adm-internal
+
+  # ============================================
+  # Core Services
+  # ============================================
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.go
+      target: gateway
+    container_name: adm-gateway
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    environment:
+      - ADM_PORT=8080
+      - ADM_GRPC_PORT=9090
+      - ADM_OLLAMA_URL=http://ollama:11434
+      - ADM_REDIS_URL=redis://redis:6379
+      - ADM_SIEM_URL=http://siem:9091
+      - ADM_POLICY_URL=http://policy:8181
+      - ADM_WATCHDOG_URL=unix:///var/run/adm/watchdog.sock
+      - ADM_LOG_LEVEL=info
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    volumes:
+      - /var/run/adm:/var/run/adm
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+      - adm-public
+
+  siem:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.go
+      target: siem
+    container_name: adm-siem
+    ports:
+      - "9091:9091"
+    environment:
+      - ADM_PORT=9091
+      - ADM_REDIS_URL=redis://redis:6379
+      - ADM_RING_BUFFER_SIZE=65536
+      - ADM_HOT_RETENTION_DAYS=7
+      - ADM_COLD_RETENTION_DAYS=180
+      - ADM_LOG_LEVEL=info
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+  policy:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.opa
+    container_name: adm-policy
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./spire/policies:/policies:ro
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "--log-level=info"
+      - "/policies"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8181/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+  # ============================================
+  # Agent Services
+  # ============================================
+  planner:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.go
+      target: planner
+    container_name: adm-planner
+    environment:
+      - ADM_GRPC_PORT=9081
+      - ADM_OLLAMA_URL=http://ollama:11434
+      - ADM_MODEL=llama3.1:8b
+      - ADM_LOG_LEVEL=info
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:9081"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+  executor:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.go
+      target: executor
+    container_name: adm-executor
+    environment:
+      - ADM_GRPC_PORT=9082
+      - ADM_DOCKER_SOCKET=unix:///var/run/docker.sock
+      - ADM_LOG_LEVEL=info
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - executor-tmp:/tmp
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:9082"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+  summarizer:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.go
+      target: summarizer
+    container_name: adm-summarizer
+    environment:
+      - ADM_GRPC_PORT=9083
+      - ADM_OLLAMA_URL=http://ollama:11434
+      - ADM_MODEL=llama3.1:8b
+      - ADM_LOG_LEVEL=info
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:9083"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+  # ============================================
+  # Endpoint Watchdog
+  # ============================================
+  watchdog:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.rust
+    container_name: adm-watchdog
+    privileged: true
+    pid: host
+    network_mode: host
+    environment:
+      - ADM_CONFIG=/etc/adm/watchdog.toml
+      - ADM_LOG_LEVEL=info
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+    volumes:
+      - /var/run/adm:/var/run/adm
+      - ./deploy/watchdog.toml:/etc/adm/watchdog.toml:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    devices:
+      - /dev:/dev
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/adm-watchdog", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - adm-internal
+
+  # ============================================
+  # Observability
+  # ============================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: adm-otel-collector
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - adm-internal
+
+  # ============================================
+  # Control Plane (auto-update)
+  # ============================================
+  control-plane:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.go
+      target: control-plane
+    container_name: adm-control-plane
+    ports:
+      - "9092:9092"
+    environment:
+      - ADM_PORT=9092
+      - ADM_GITHUB_REPO=agentic-defense-matrix
+      - ADM_LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9092/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adm-internal
+
+volumes:
+  redis-data:
+  ollama-models:
+  executor-tmp:
+
+networks:
+  adm-internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+  adm-public:
+    driver: bridge

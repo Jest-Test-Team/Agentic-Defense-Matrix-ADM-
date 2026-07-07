@@ -1,0 +1,69 @@
+name: Red Team Fuzz
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Monday at 2am
+
+jobs:
+  redteam-fuzz:
+    name: Red Team Fuzz Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        attack:
+          - prompt_injection
+          - tool_chaining
+          - rag_poisoning
+          - reverse_shell
+          - confused_deputy
+          - rate_abuse
+          - egress_exfiltration
+          - container_escape
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run fuzz test
+        run: |
+          go test -v -fuzz=Fuzz${{ matrix.attack }} -fuzztime=60s ./tests/redteam/...
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-results-${{ matrix.attack }}
+          path: |
+            **/fuzz*.json
+            **/fuzz*.log
+
+  semantic-fuzz:
+    name: Semantic Analysis Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Fuzz semantic analyzer
+        run: |
+          go test -v -fuzz=FuzzSemantic -fuzztime=120s ./pkg/semantic/...
+
+  policy-fuzz:
+    name: Policy Engine Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Fuzz policy evaluator
+        run: |
+          go test -v -fuzz=FuzzPolicy -fuzztime=120s ./pkg/policy/...

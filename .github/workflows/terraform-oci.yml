@@ -189,8 +189,26 @@ jobs:
           retention-days: 7
 
       - name: Terraform apply
+        id: apply
         if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.auto_approve
+        continue-on-error: true
         run: terraform apply -auto-approve tfplan
+
+      - name: Retry apply with micro shape after A1 failure
+        id: apply_retry
+        if: steps.apply.outcome == 'failure' && inputs.shape != 'micro'
+        env:
+          TF_VAR_force_shape: micro
+        run: |
+          echo "::warning::Apply failed (likely A1 out of host capacity); retrying with VM.Standard.E2.1.Micro."
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+
+      - name: Fail when apply did not succeed
+        if: steps.apply.outcome == 'failure' && steps.apply_retry.outcome != 'success'
+        run: |
+          echo "::error::Terraform apply failed and the micro-shape retry did not succeed."
+          exit 1
 
       - name: Terraform destroy
         if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy' && inputs.auto_approve

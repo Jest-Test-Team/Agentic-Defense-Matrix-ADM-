@@ -89,15 +89,40 @@ data "oci_limits_resource_availability" "vcn_count" {
 }
 
 locals {
+  reuse_network = var.existing_subnet_id == "" && var.reuse_discovered_network
+
   discovered_vcn_id = (
-    var.existing_subnet_id == "" && var.reuse_discovered_network ?
+    local.reuse_network ?
     try([for v in local.all_vcns : v.id if v.name == "adm-vcn" && v.state == "AVAILABLE"][0], null) :
     null
   )
-  discovered_subnet_id = local.discovered_vcn_id == null ? null : try(
+  adm_subnet_id = local.discovered_vcn_id == null ? null : try(
     [for s in data.oci_core_subnets.by_vcn[local.discovered_vcn_id].subnets : s.id if s.display_name == "adm-subnet"][0],
     null
   )
+
+  # When the vcn-count quota is exhausted and no adm network exists, the only
+  # way to deploy is borrowing a public subnet from an existing VCN. Required
+  # port access is guaranteed by adm-nsg on the instance VNIC, so the borrowed
+  # subnet's own security lists don't matter.
+  public_subnets = flatten([
+    for v in local.all_vcns : [
+      for s in data.oci_core_subnets.by_vcn[v.id].subnets : {
+        id   = s.id
+        name = s.display_name
+      } if v.state == "AVAILABLE" && !s.prohibit_public_ip_on_vnic
+    ]
+  ])
+  fallback_subnet_id = (
+    local.reuse_network && try(tonumber(data.oci_limits_resource_availability.vcn_count.available) < 1, false) ?
+    try(
+      [for s in local.public_subnets : s.id if length(regexall("public", lower(s.name))) > 0][0],
+      local.public_subnets[0].id,
+      null
+    ) : null
+  )
+
+  discovered_subnet_id = local.adm_subnet_id != null ? local.adm_subnet_id : local.fallback_subnet_id
 
   create_network = var.existing_subnet_id == "" && local.discovered_subnet_id == null
   subnet_id = (
@@ -196,6 +221,45 @@ resource "oci_core_subnet" "adm_subnet" {
   dns_label         = "adm"
 }
 
+# The selected subnet may be borrowed from a foreign VCN whose security lists
+# don't open ADM's ports. NSG rules are unioned with security lists and apply
+# only to VNICs attached to the NSG, so adm-nsg guarantees access for this
+# instance without touching the shared subnet's rules.
+data "oci_core_subnet" "selected" {
+  subnet_id = local.subnet_id
+}
+
+resource "oci_core_network_security_group" "adm_nsg" {
+  compartment_id = data.oci_core_subnet.selected.compartment_id
+  vcn_id         = data.oci_core_subnet.selected.vcn_id
+  display_name   = "adm-nsg"
+}
+
+resource "oci_core_network_security_group_security_rule" "adm_nsg_ingress" {
+  for_each = { ssh = 22, gateway = 8080, ollama = 11434 }
+
+  network_security_group_id = oci_core_network_security_group.adm_nsg.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+
+  tcp_options {
+    destination_port_range {
+      min = each.value
+      max = each.value
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "adm_nsg_egress" {
+  network_security_group_id = oci_core_network_security_group.adm_nsg.id
+  direction                 = "EGRESS"
+  protocol                  = "all"
+  destination               = "0.0.0.0/0"
+  destination_type          = "CIDR_BLOCK"
+}
+
 resource "oci_core_instance" "adm_instance" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.tenancy_ocid
@@ -211,6 +275,7 @@ resource "oci_core_instance" "adm_instance" {
     subnet_id        = local.subnet_id
     display_name     = "adm-vnic"
     assign_public_ip = true
+    nsg_ids          = [oci_core_network_security_group.adm_nsg.id]
   }
 
   source_details {

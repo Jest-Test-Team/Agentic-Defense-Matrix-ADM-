@@ -50,6 +50,9 @@ daemon_watchdog/target/
 *.crt
 *.cert
 
+# Terraform
+**/.terraform/
+
 # Docker
 docker-compose.override.yml
 
@@ -68,3 +71,4 @@ temp/
 OCI.LOCAL.ENV
 OCI-CREDENTIALS/
 scripts/SET-UP-GHA-SECRECTS.SH
+*.0

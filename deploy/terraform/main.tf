@@ -52,6 +52,26 @@ data "oci_core_subnets" "existing_adm" {
   state          = "AVAILABLE"
 }
 
+# Diagnostics surfaced as plan outputs: actual vcn-count quota usage and every
+# VCN/subnet in the compartment, so a LimitExceeded failure can be traced to
+# what is consuming the quota without console access.
+data "oci_limits_resource_availability" "vcn_count" {
+  compartment_id = var.tenancy_ocid
+  service_name   = "vcn"
+  limit_name     = "vcn-count"
+}
+
+data "oci_core_vcns" "diagnostics" {
+  compartment_id = var.tenancy_ocid
+}
+
+data "oci_core_subnets" "diagnostics" {
+  for_each = { for v in data.oci_core_vcns.diagnostics.virtual_networks : v.id => v }
+
+  compartment_id = var.tenancy_ocid
+  vcn_id         = each.key
+}
+
 locals {
   discovered_vcn_id    = try(data.oci_core_vcns.existing_adm[0].virtual_networks[0].id, null)
   discovered_subnet_id = try(data.oci_core_subnets.existing_adm[0].subnets[0].id, null)

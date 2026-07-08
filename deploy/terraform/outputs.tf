@@ -1,3 +1,26 @@
+# Shown under "Changes to Outputs" during plan. OCIDs are truncated because CI
+# logs are public; match the suffix against the OCI console to get the full OCID.
+output "network_diagnostics" {
+  description = "vcn-count quota usage and VCNs/subnets in the compartment"
+  value = {
+    vcn_limit_used      = data.oci_limits_resource_availability.vcn_count.used
+    vcn_limit_available = data.oci_limits_resource_availability.vcn_count.available
+    vcns = [
+      for v in data.oci_core_vcns.diagnostics.virtual_networks : {
+        name      = v.display_name
+        state     = v.state
+        id_suffix = substr(v.id, length(v.id) - 12, 12)
+        subnets = [
+          for s in data.oci_core_subnets.diagnostics[v.id].subnets : {
+            name      = s.display_name
+            id_suffix = substr(s.id, length(s.id) - 12, 12)
+          }
+        ]
+      }
+    ]
+  }
+}
+
 output "instance_public_ip" {
   description = "Public IP of the ADM instance"
   value       = oci_core_instance.adm_instance.public_ip

@@ -66,7 +66,10 @@ env:
   TF_VAR_force_shape: ${{ inputs.shape == 'micro' && 'micro' || '' }}
   TF_VAR_ocpus: ${{ vars.ADM_OCPUS || 4 }}
   TF_VAR_memory_in_gbs: ${{ vars.ADM_MEMORY_IN_GBS || 24 }}
-  TF_VAR_volume_size_gbs: ${{ vars.ADM_VOLUME_SIZE_GBS || 100 }}
+  # Default 50 keeps the whole deploy inside the 200 GB Always Free block
+  # storage cap even while orphaned boot volumes linger; raise via repo var
+  # ADM_VOLUME_SIZE_GBS once the tenancy has room (resize up is in-place).
+  TF_VAR_volume_size_gbs: ${{ vars.ADM_VOLUME_SIZE_GBS || 50 }}
   TF_VAR_docker_compose_version: ${{ vars.ADM_DOCKER_COMPOSE_VERSION || 'v2.29.1' }}
 
 jobs:

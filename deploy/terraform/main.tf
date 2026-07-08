@@ -312,6 +312,11 @@ resource "oci_core_network_security_group_security_rule" "adm_nsg_egress" {
 }
 
 resource "oci_core_instance" "adm_instance" {
+  # The boot volume and adm_volume share the block storage quota; when a size
+  # change replaces adm_volume, the old one must be gone before the instance
+  # requests its boot volume or the combined usage can exceed the cap.
+  depends_on = [oci_core_volume.adm_volume]
+
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.tenancy_ocid
   display_name        = "adm-instance"

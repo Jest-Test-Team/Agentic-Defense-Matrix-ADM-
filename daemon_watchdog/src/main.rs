@@ -33,7 +33,7 @@ impl Watchdog {
         }
     }
 
-    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Starting ADM Watchdog daemon");
 
         // Initialize platform-specific interceptor
@@ -64,15 +64,14 @@ impl Watchdog {
 
         let listener = tokio::net::UnixListener::bind(&socket_path)?;
         let sessions = self.sessions.clone();
-        let config = self.config.clone();
+        let _config = self.config.clone();
 
         loop {
             match listener.accept().await {
                 Ok((stream, _)) => {
                     let sessions = sessions.clone();
-                    let config = config.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = handle_connection(stream, sessions, config).await {
+                        if let Err(e) = handle_connection(stream, sessions).await {
                             error!("Connection error: {}", e);
                         }
                     });
@@ -100,7 +99,7 @@ impl Watchdog {
 
     pub fn get_stats(&self) -> WatchdogStats {
         WatchdogStats {
-            active_sessions: 0, // Will be updated from sessions
+            active_sessions: 0,
             syscalls_intercepted: self.telemetry.syscalls_intercepted(),
             connections_blocked: self.egress_blocker.connections_blocked(),
         }
@@ -117,7 +116,6 @@ pub struct WatchdogStats {
 async fn handle_connection(
     mut stream: tokio::net::UnixStream,
     sessions: Arc<RwLock<Vec<config::SessionInfo>>>,
-    config: Config,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -131,7 +129,6 @@ async fn handle_connection(
         let request = String::from_utf8_lossy(&buffer[..n]);
         info!("Received request: {}", request);
 
-        // Simple protocol handling
         let response = match request.trim() {
             "status" => {
                 let sessions = sessions.read().await;
@@ -149,7 +146,6 @@ async fn handle_connection(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -157,7 +153,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    // Load configuration
     let config_path = std::env::var("ADM_CONFIG").unwrap_or_else(|_| {
         if cfg!(target_os = "macos") {
             "/etc/adm/watchdog.toml".to_string()
@@ -183,7 +178,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let watchdog = Watchdog::new(config);
+    let mut watchdog = Watchdog::new(config);
     watchdog.start().await?;
 
     Ok(())

@@ -227,7 +227,6 @@ func (a *ExecutorAgent) killContainer(ctx context.Context, containerID string) {
 		return
 	}
 
-	timeout := 5
 	a.dockerClient.ContainerKill(ctx, containerID, "SIGKILL")
 	a.dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
 		Force: true,
@@ -267,6 +266,6 @@ func main() {
 	}
 
 	if err := agent.Start(":" + port); err != nil {
-		agent.logger.Fatal(err)
+		agent.logger.Fatal("executor start failed", zap.Error(err))
 	}
 }

@@ -11,6 +11,12 @@ adm-planner
 adm-executor
 adm-summarizer
 adm-control-plane
+gateway
+planner
+executor
+summarizer
+siem_engine
+control_plane
 *.msi
 *.pkg
 

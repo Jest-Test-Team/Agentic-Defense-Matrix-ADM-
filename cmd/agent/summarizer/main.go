@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/adm/pkg/ollama"
 	"github.com/labstack/echo/v4"
@@ -171,6 +169,6 @@ func main() {
 	}
 
 	if err := agent.Start(":" + port); err != nil {
-		agent.logger.Fatal(err)
+		agent.logger.Fatal("summarizer start failed", zap.Error(err))
 	}
 }

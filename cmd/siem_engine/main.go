@@ -247,6 +247,6 @@ func main() {
 	}
 
 	if err := engine.Start(":" + port); err != nil {
-		engine.logger.Fatal(err)
+		engine.logger.Fatal("siem start failed", zap.Error(err))
 	}
 }

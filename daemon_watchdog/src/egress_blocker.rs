@@ -38,9 +38,10 @@ impl EgressBlocker {
     }
 
     pub async fn add_session_filter(&self, session_id: &str, rules: Vec<FilterRule>) {
+        let count = rules.len();
         let mut session_rules = self.session_rules.write().await;
         session_rules.insert(session_id.to_string(), rules);
-        info!("Added {} filter rules for session {}", rules.len(), session_id);
+        info!("Added {} filter rules for session {}", count, session_id);
     }
 
     pub async fn remove_session_filter(&self, session_id: &str) {

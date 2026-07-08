@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/adm/pkg/auth"
+	"github.com/adm/pkg/autoupdate"
 	"github.com/adm/pkg/ollama"
 	"github.com/adm/pkg/policy"
 	"github.com/adm/pkg/semantic"
@@ -29,6 +29,7 @@ type Gateway struct {
 	policyEngine   *policy.Engine
 	tokenManager   *auth.Manager
 	siemClient     *SIEMClient
+	autoUpdate     *autoupdate.Client
 	logger         *zap.Logger
 	sessions       map[string]*Session
 }
@@ -105,6 +106,16 @@ func NewGateway() (*Gateway, error) {
 	policyEngine := policy.NewEngine()
 	tokenManager := auth.NewManager(5 * time.Minute)
 
+	repoOwner := os.Getenv("ADM_GITHUB_OWNER")
+	if repoOwner == "" {
+		repoOwner = "Jest-Test-Team"
+	}
+	repoName := os.Getenv("ADM_GITHUB_REPO")
+	if repoName == "" {
+		repoName = "Agentic-Defense-Matrix-ADM-"
+	}
+	autoUpdate := autoupdate.NewClient(repoOwner, repoName, logger)
+
 	gw := &Gateway{
 		echo:         echo.New(),
 		ollamaClient: ollamaClient,
@@ -114,6 +125,7 @@ func NewGateway() (*Gateway, error) {
 		policyEngine: policyEngine,
 		tokenManager: tokenManager,
 		siemClient:   NewSIEMClient(),
+		autoUpdate:   autoUpdate,
 		logger:       logger,
 		sessions:     make(map[string]*Session),
 	}
@@ -137,15 +149,20 @@ func (gw *Gateway) setupMiddleware() {
 func (gw *Gateway) setupRoutes() {
 	gw.echo.GET("/v1/health", gw.healthHandler)
 	gw.echo.GET("/v1/ready", gw.readyHandler)
+	gw.echo.GET("/v1/version", gw.versionHandler)
 	gw.echo.POST("/v1/chat/completions", gw.chatCompletion)
 	gw.echo.POST("/v1/tools/execute", gw.executeTool)
 	gw.echo.POST("/v1/admin/revoke/:session_id", gw.revokeSession)
 	gw.echo.GET("/v1/admin/sessions", gw.listSessions)
 	gw.echo.GET("/v1/admin/metrics", gw.getMetrics)
+	gw.echo.POST("/v1/admin/update/check", gw.checkUpdateHandler)
 }
 
 func (gw *Gateway) Start(addr string) error {
 	gw.logger.Info("Starting Gateway", zap.String("addr", addr))
+
+	// Start auto-update background check
+	gw.autoUpdate.StartBackgroundCheck()
 
 	go func() {
 		quit := make(chan os.Signal, 1)
@@ -162,8 +179,32 @@ func (gw *Gateway) healthHandler(c echo.Context) error {
 	ollamaOK := gw.ollamaClient.HealthCheck(c.Request().Context()) == nil
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"healthy": ollamaOK,
-		"version": "0.1.0",
+		"version": gw.autoUpdate.CurrentVersion(),
 		"model":   gw.registry.Default().Name,
+	})
+}
+
+func (gw *Gateway) versionHandler(c echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"version": gw.autoUpdate.CurrentVersion(),
+		"update_available": false,
+	})
+}
+
+func (gw *Gateway) checkUpdateHandler(c echo.Context) error {
+	latest, err := gw.autoUpdate.GetLatestVersion()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	updateAvailable := latest.Version != gw.autoUpdate.CurrentVersion()
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"current_version": gw.autoUpdate.CurrentVersion(),
+		"latest_version":  latest.Version,
+		"update_available": updateAvailable,
+		"changelog":       latest.Changelog,
 	})
 }
 
@@ -357,6 +398,6 @@ func main() {
 	}
 
 	if err := gateway.Start(":" + port); err != nil {
-		gateway.logger.Fatal(err)
+		gateway.logger.Fatal("gateway start failed", zap.Error(err))
 	}
 }

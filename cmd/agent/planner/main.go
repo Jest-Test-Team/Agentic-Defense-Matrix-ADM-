@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -164,6 +163,6 @@ func main() {
 	}
 
 	if err := agent.Start(":" + port); err != nil {
-		agent.logger.Fatal(err)
+		agent.logger.Fatal("planner start failed", zap.Error(err))
 	}
 }

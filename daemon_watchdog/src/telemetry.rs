@@ -8,7 +8,7 @@ pub struct TelemetryCollector {
     syscalls_intercepted: Arc<AtomicU64>,
     export_interval_ms: u64,
     otlp_endpoint: String,
-    service_name: String,
+    _service_name: String,
     event_sender: mpsc::Sender<SyscallEvent>,
     event_receiver: Option<mpsc::Receiver<SyscallEvent>>,
 }
@@ -21,7 +21,7 @@ impl TelemetryCollector {
             syscalls_intercepted: Arc::new(AtomicU64::new(0)),
             export_interval_ms: config.telemetry.export_interval_ms,
             otlp_endpoint: config.telemetry.otlp_endpoint.clone(),
-            service_name: config.telemetry.service_name.clone(),
+            _service_name: config.telemetry.service_name.clone(),
             event_sender,
             event_receiver: Some(event_receiver),
         }
@@ -31,10 +31,9 @@ impl TelemetryCollector {
         let receiver = self.event_receiver.take().expect("Receiver already taken");
         let syscalls = self.syscalls_intercepted.clone();
         let endpoint = self.otlp_endpoint.clone();
-        let service = self.service_name.clone();
 
         tokio::spawn(async move {
-            Self::export_loop(receiver, syscalls, endpoint, service).await;
+            Self::export_loop(receiver, syscalls, endpoint).await;
         });
     }
 
@@ -42,20 +41,12 @@ impl TelemetryCollector {
         mut receiver: mpsc::Receiver<SyscallEvent>,
         syscalls: Arc<AtomicU64>,
         endpoint: String,
-        service: String,
     ) {
-        use opentelemetry::trace::TracerProvider as _;
-        use opentelemetry_otlp::WithExportConfig;
-
-        // Initialize OTel exporter (placeholder - would use actual OTLP exporter)
         info!("Starting telemetry export loop to {}", endpoint);
 
-        while let Some(event) = receiver.recv().await {
+        while let Some(_event) = receiver.recv().await {
             syscalls.fetch_add(1, Ordering::Relaxed);
-            debug!("Exporting syscall event: {}", event.event_id);
-
-            // In production, this would export via OTLP gRPC
-            // For now, just count events
+            debug!("Exporting syscall event");
         }
     }
 
@@ -78,9 +69,9 @@ impl Clone for TelemetryCollector {
             syscalls_intercepted: self.syscalls_intercepted.clone(),
             export_interval_ms: self.export_interval_ms,
             otlp_endpoint: self.otlp_endpoint.clone(),
-            service_name: self.service_name.clone(),
+            _service_name: self._service_name.clone(),
             event_sender: self.event_sender.clone(),
-            event_receiver: None, // Clone doesn't take receiver
+            event_receiver: None,
         }
     }
 }

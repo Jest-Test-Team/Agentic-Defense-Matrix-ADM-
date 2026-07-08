@@ -190,6 +190,21 @@ Located in `tests/redteam/`, implemented in Go/Rust:
 | RT-013 | TOCTOU Race | Race condition in policy check |
 | RT-014 | DNS Rebinding | Bypass egress filter via DNS |
 | RT-015 | Privilege Escalation | Exploit Watchdog → root |
+| RT-016 | Indirect Tool Output | Inject malicious instructions in tool output |
+| RT-017 | Multi-Turn Context | Build trust then exploit across turns |
+| RT-018 | Encoding Injection | Base64/hex encoded payloads |
+| RT-019 | Multi-Language | Injection in multiple languages |
+| RT-020 | Nested Injection | Nested system/user/assistant markers |
+| RT-021 | Social Engineering | Fake admin/emergency commands |
+| RT-022 | Payload Obfuscation | Variable splitting, concatenation |
+| RT-023 | Supply Chain | Malicious package installation |
+| RT-024 | Time-Based | Delayed trigger injection |
+| RT-025 | Resource Exhaustion | Large payloads, concurrent requests |
+| RT-026 | Memory Poisoning | Poison agent conversation memory |
+| RT-027 | Cross-Session | Contaminate other sessions |
+| RT-028 | Token Extraction | Extract API keys/tokens |
+| RT-029 | Denial of Service | Excessive token generation |
+| RT-030 | Side Channel | Data exfiltration via encoding |
 
 ---
 
@@ -216,6 +231,59 @@ make docker-up
 ```
 
 ---
+
+## Auto-Update System
+
+Gateway includes built-in auto-update client that polls GitHub Releases:
+
+- **Background check**: Every 1 hour, checks for new releases
+- **SHA256 verification**: Verifies checksums before applying
+- **Binary replacement**: Downloads and replaces binaries in-place
+- **Service restart**: Restarts the service after update (systemd/launchd)
+
+**Admin endpoints:**
+- `GET /v1/version` — Current version
+- `POST /v1/admin/update/check` — Check for updates
+
+**Environment variables:**
+- `ADM_GITHUB_OWNER` — GitHub repo owner (default: `Jest-Test-Team`)
+- `ADM_GITHUB_REPO` — GitHub repo name (default: `Agentic-Defense-Matrix-ADM-`)
+
+## Deployment
+
+### Docker Compose (Recommended)
+
+```bash
+# Start full stack
+docker compose up -d
+
+# Start with development mode
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+### Platform Installers
+
+| Platform | Installer | Service Manager |
+|----------|-----------|-----------------|
+| Windows | `deploy/packaging/windows/install.ps1` | Windows Service |
+| macOS | `deploy/packaging/macos/install.sh` | launchd |
+| Linux | `deploy/packaging/linux/install.sh` | systemd |
+
+### Manual Installation
+
+```bash
+# Build from source
+make build
+
+# Install binaries
+sudo cp bin/* /usr/local/bin/
+
+# Create systemd service
+sudo cp deploy/packaging/linux/adm.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable adm
+sudo systemctl start adm
+```
 
 ## Documentation
 

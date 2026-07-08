@@ -1,17 +1,11 @@
 use crate::config::Config;
 use anyhow::Result;
-use tracing::{error, info, warn};
+use tracing::warn;
 
 #[cfg(target_os = "windows")]
-pub fn initialize(config: &Config) -> Result<()> {
+pub fn initialize(_config: &Config) -> Result<()> {
+    use tracing::info;
     info!("Initializing Windows WFP filter interceptor");
-
-    // In production, this would use the windows-sys crate to:
-    // 1. Open WFP engine handle
-    // 2. Create sublayer
-    // 3. Add filters for ALE_AUTH_CONNECT layers
-    // 4. Set up callout functions for filtering decisions
-
     info!("WFP filter interceptor initialized (placeholder)");
     Ok(())
 }
@@ -37,7 +31,7 @@ pub enum FilterAction {
 }
 
 impl WFPFilter {
-    pub fn to_filter_rule(&self, session_id: &str) -> crate::config::FilterRule {
+    pub fn to_filter_rule(&self, _session_id: &str) -> crate::config::FilterRule {
         crate::config::FilterRule {
             rule_id: format!("wfp-{}", self.filter_id),
             protocol: "tcp".to_string(),

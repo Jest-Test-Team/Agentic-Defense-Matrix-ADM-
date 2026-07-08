@@ -2,13 +2,13 @@ use crate::config::{Config, SyscallEvent};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 pub struct PolicyEnforcer {
     policies: Arc<RwLock<HashMap<String, Policy>>>,
     blocked_patterns: Vec<regex::Regex>,
     allowed_binaries: Vec<String>,
-    max_processes_per_session: u32,
+    _max_processes_per_session: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl PolicyEnforcer {
             policies: Arc::new(RwLock::new(HashMap::new())),
             blocked_patterns,
             allowed_binaries: config.process_monitor.allowed_binaries.clone(),
-            max_processes_per_session: config.process_monitor.max_processes_per_session,
+            _max_processes_per_session: config.process_monitor.max_processes_per_session,
         }
     }
 
@@ -57,7 +57,6 @@ impl PolicyEnforcer {
     }
 
     pub async fn evaluate_syscall(&self, event: &SyscallEvent) -> PolicyDecision {
-        // Check blocked patterns
         for pattern in &self.blocked_patterns {
             let combined = format!("{} {}", event.process_name, event.arguments.join(" "));
             if pattern.is_match(&combined) {
@@ -69,7 +68,6 @@ impl PolicyEnforcer {
             }
         }
 
-        // Check allowed binaries
         if !self.allowed_binaries.is_empty() {
             let is_allowed = self
                 .allowed_binaries

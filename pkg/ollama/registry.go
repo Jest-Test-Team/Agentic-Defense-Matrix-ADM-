@@ -16,20 +16,20 @@ const (
 
 // ModelConfig describes a registered model and its capabilities.
 type ModelConfig struct {
-	Name         string
-	DisplayName  string
-	Tier         ModelTier
-	ToolCalling  bool
-	MaxContext   int
-	DefaultTemp  float64
-	Embedding    bool
+	Name        string
+	DisplayName string
+	Tier        ModelTier
+	ToolCalling bool
+	MaxContext  int
+	DefaultTemp float64
+	Embedding   bool
 }
 
 // Registry manages available LLM models.
 type Registry struct {
-	mu      sync.RWMutex
-	models  map[string]*ModelConfig
-	default string
+	mu           sync.RWMutex
+	models       map[string]*ModelConfig
+	defaultModel string
 }
 
 // NewRegistry creates a model registry with defaults.
@@ -78,7 +78,7 @@ func NewRegistry() *Registry {
 		Embedding:   true,
 	})
 
-	r.default = "llama3.1:8b"
+	r.defaultModel = "llama3.1:8b"
 	return r
 }
 
@@ -105,7 +105,7 @@ func (r *Registry) Get(name string) (*ModelConfig, error) {
 func (r *Registry) Default() *ModelConfig {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.models[r.default]
+	return r.models[r.defaultModel]
 }
 
 // SetDefault changes the default model.
@@ -116,7 +116,7 @@ func (r *Registry) SetDefault(name string) error {
 	if _, ok := r.models[name]; !ok {
 		return fmt.Errorf("model %q not registered", name)
 	}
-	r.default = name
+	r.defaultModel = name
 	return nil
 }
 

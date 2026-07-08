@@ -15,7 +15,7 @@ type StreamReader struct {
 }
 
 // NewStreamReader wraps an io.ReadCloser into a StreamReader.
-func NewStreamer(rc io.Closer) *StreamReader {
+func NewStreamer(rc io.ReadCloser) *StreamReader {
 	return &StreamReader{
 		scanner: bufio.NewScanner(rc),
 		closer:  rc,
@@ -93,8 +93,8 @@ func Collect(stream *StreamReader) (*ChatResponse, error) {
 			Role:    "assistant",
 			Content: fullContent,
 		},
-		Done:       true,
-		EvalCount:  totalTokens,
+		Done:      true,
+		EvalCount: totalTokens,
 	}, nil
 }
 
@@ -103,10 +103,10 @@ func CollectWithToolCalls(stream *StreamReader) (*ChatResponse, []OpenAIToolCall
 	defer stream.Close()
 
 	var (
-		model       string
-		fullContent string
+		model        string
+		fullContent  string
 		allToolCalls []ToolCall
-		totalTokens int
+		totalTokens  int
 	)
 
 	for stream.Next() {
@@ -135,8 +135,8 @@ func CollectWithToolCalls(stream *StreamReader) (*ChatResponse, []OpenAIToolCall
 			Content:   fullContent,
 			ToolCalls: allToolCalls,
 		},
-		Done:       true,
-		EvalCount:  totalTokens,
+		Done:      true,
+		EvalCount: totalTokens,
 	}
 
 	adapter := NewSchemaAdapter()

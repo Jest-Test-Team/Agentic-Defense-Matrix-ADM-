@@ -1,11 +1,4 @@
 use serde::Deserialize;
-use std::path::PathBuf;
-
-pub mod egress_blocker;
-pub mod macos_es;
-pub mod policy_enforcer;
-pub mod telemetry;
-pub mod wfp_filter;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -178,6 +171,22 @@ impl Config {
         let config: Config = toml::from_str(&content)?;
         Ok(config)
     }
+
+    pub fn socket_path(&self) -> &str {
+        &self.daemon.socket_path
+    }
+
+    pub fn is_darwin(&self) -> bool {
+        cfg!(target_os = "macos")
+    }
+
+    pub fn is_windows(&self) -> bool {
+        cfg!(target_os = "windows")
+    }
+
+    pub fn is_linux(&self) -> bool {
+        cfg!(target_os = "linux")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -225,22 +234,4 @@ pub struct FilterRule {
     pub remote_port: u16,
     pub action: FilterAction,
     pub priority: i32,
-}
-
-impl Config {
-    pub fn socket_path(&self) -> &str {
-        &self.daemon.socket_path
-    }
-
-    pub fn is_darwin(&self) -> bool {
-        cfg!(target_os = "macos")
-    }
-
-    pub fn is_windows(&self) -> bool {
-        cfg!(target_os = "windows")
-    }
-
-    pub fn is_linux(&self) -> bool {
-        cfg!(target_os = "linux")
-    }
 }

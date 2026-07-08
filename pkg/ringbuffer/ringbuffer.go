@@ -147,7 +147,7 @@ type Stats struct {
 // GetStats returns current buffer statistics.
 func (rb *RingBuffer) GetStats() Stats {
 	return Stats{
-		Capacity: rb.Capacity(),
+		Capacity: rb.Cap(),
 		Length:   rb.Len(),
 		Dropped:  rb.Dropped(),
 		Head:     atomic.LoadInt64(&rb.head),

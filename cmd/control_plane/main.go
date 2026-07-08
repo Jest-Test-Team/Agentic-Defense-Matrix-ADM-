@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -169,6 +168,6 @@ func main() {
 	}
 
 	if err := cp.Start(":" + port); err != nil {
-		cp.logger.Fatal(err)
+		cp.logger.Fatal("control plane start failed", zap.Error(err))
 	}
 }

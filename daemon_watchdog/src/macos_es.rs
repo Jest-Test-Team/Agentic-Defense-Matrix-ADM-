@@ -1,21 +1,14 @@
 use crate::config::Config;
 use anyhow::Result;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 #[cfg(target_os = "macos")]
-pub fn initialize(config: &Config) -> Result<()> {
+pub fn initialize(_config: &Config) -> Result<()> {
     info!("Initializing macOS Endpoint Security interceptor");
 
-    // Check if running with appropriate permissions
     if !is_root() {
         warn!("Watchdog should run as root for full Endpoint Security access");
     }
-
-    // In production, this would use the security-framework crate to:
-    // 1. Create an ES client
-    // 2. Subscribe to event types
-    // 3. Set up event callback handlers
-    // 4. Authorize the client
 
     info!("macOS ES interceptor initialized (placeholder)");
     Ok(())
@@ -29,7 +22,11 @@ pub fn initialize(_config: &Config) -> Result<()> {
 
 #[cfg(target_os = "macos")]
 fn is_root() -> bool {
-    unsafe { libc::getuid() == 0 }
+    std::process::Command::new("id")
+        .args(["-u"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+        .unwrap_or(false)
 }
 
 #[cfg(not(target_os = "macos"))]

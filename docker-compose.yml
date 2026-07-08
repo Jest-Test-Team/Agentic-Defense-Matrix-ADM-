@@ -32,13 +32,6 @@ services:
       - "11434:11434"
     volumes:
       - ollama-models:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s
@@ -233,8 +226,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - adm-internal
 
   # ============================================
   # Observability

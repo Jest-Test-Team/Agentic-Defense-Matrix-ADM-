@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean docker-up docker-down redteam
+.PHONY: all build test lint clean docker-up docker-down redteam terraform-init terraform-plan terraform-apply terraform-destroy
 
 # Go services
 GATEWAY = cmd/gateway
@@ -130,4 +130,31 @@ help:
 	@echo "  proto        - Generate protobuf code"
 	@echo "  run-gateway  - Build and run Gateway"
 	@echo "  run-siem     - Build and run SIEM Engine"
+	@echo "  terraform-init   - Initialize Terraform"
+	@echo "  terraform-plan   - Plan Terraform changes"
+	@echo "  terraform-apply  - Apply Terraform changes"
+	@echo "  terraform-destroy - Destroy Terraform resources"
 	@echo "  help         - Show this help"
+
+## Terraform operations for Oracle Cloud Always Free
+TERRAFORM_DIR = deploy/terraform
+
+terraform-init:
+	@echo "==> Initializing Terraform..."
+	cd $(TERRAFORM_DIR) && terraform init
+
+terraform-plan:
+	@echo "==> Planning Terraform changes..."
+	cd $(TERRAFORM_DIR) && terraform plan
+
+terraform-apply:
+	@echo "==> Applying Terraform changes..."
+	cd $(TERRAFORM_DIR) && terraform apply
+
+terraform-destroy:
+	@echo "==> Destroying Terraform resources..."
+	cd $(TERRAFORM_DIR) && terraform destroy
+
+terraform-output:
+	@echo "==> Getting Terraform output..."
+	cd $(TERRAFORM_DIR) && terraform output

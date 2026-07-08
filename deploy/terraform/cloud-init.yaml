@@ -1,0 +1,58 @@
+#cloud-config
+# ADM Oracle Cloud Always Free - Cloud Init
+# Runs on first boot to set up Docker, Docker Compose, and ADM stack
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-plugin
+  - git
+  - curl
+  - jq
+  - htop
+  - tmux
+
+users:
+  - name: adm
+    shell: /bin/bash
+    home: /home/adm
+    groups: docker
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+write_files:
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        },
+        "storage-driver": "overlay2",
+        "dns": ["8.8.8.8", "1.1.1.1"]
+      }
+
+  - path: /etc/sysctl.d/99-adm.conf
+    content: |
+      net.core.somaxconn = 65535
+      net.ipv4.ip_local_port_range = 1024 65535
+      vm.swappiness = 10
+      fs.file-max = 2097152
+
+  - path: /etc/security/limits.d/adm.conf
+    content: |
+      adm soft nofile 65535
+      adm hard nofile 65535
+
+runcmd:
+  - sysctl --system
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker adm
+  - mkdir -p /opt/adm
+  - chown -R adm:adm /opt/adm
+  - su - adm -c "git clone https://github.com/Jest-Test-Team/Agentic-Defense-Matrix-ADM-.git /opt/adm/repo"
+  - su - adm -c "chmod +x /opt/adm/repo/deploy/scripts/*.sh"
+  - su - adm -c "/opt/adm/repo/deploy/scripts/setup.sh"

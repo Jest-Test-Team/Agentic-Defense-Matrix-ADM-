@@ -1,0 +1,22 @@
+# Oracle Cloud Always Free - Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+
+# OCI Credentials
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa..."
+user_ocid        = "ocid1.user.oc1..aaaaaaaa..."
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+
+# Region (choose closest to you)
+region = "us-ashburn-1"
+
+# Always Free Resources (max 4 OCPUs, 24 GB RAM, 200 GB storage)
+ocpus         = 4
+memory_in_gbs = 24
+volume_size_gbs = 100
+
+# SSH Public Key (generate with: ssh-keygen -t ed25519 -f ~/.ssh/adm_key)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... adm@local"
+
+# Docker Compose Version
+docker_compose_version = "v2.29.1"

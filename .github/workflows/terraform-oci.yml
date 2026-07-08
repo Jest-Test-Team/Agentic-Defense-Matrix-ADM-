@@ -1,0 +1,163 @@
+name: Terraform OCI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/terraform-oci.yml'
+      - 'deploy/terraform/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/terraform-oci.yml'
+      - 'deploy/terraform/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Terraform action to run
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      auto_approve:
+        description: Require true before apply or destroy runs
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-oci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_INPUT: false
+  TF_WORKING_DIR: deploy/terraform
+  TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
+  TF_VAR_user_ocid: ${{ secrets.OCI_USER_OCID }}
+  TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+  TF_VAR_region: ${{ secrets.OCI_REGION || 'us-ashburn-1' }}
+  TF_VAR_ssh_public_key: ${{ secrets.ADM_SSH_PUBLIC_KEY }}
+  TF_VAR_ocpus: ${{ vars.ADM_OCPUS || 4 }}
+  TF_VAR_memory_in_gbs: ${{ vars.ADM_MEMORY_IN_GBS || 24 }}
+  TF_VAR_volume_size_gbs: ${{ vars.ADM_VOLUME_SIZE_GBS || 100 }}
+  TF_VAR_docker_compose_version: ${{ vars.ADM_DOCKER_COMPOSE_VERSION || 'v2.29.1' }}
+
+jobs:
+  validate:
+    name: Init and validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name != 'pull_request'
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Restore Terraform state cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deploy/terraform/terraform.tfstate
+            deploy/terraform/terraform.tfstate.backup
+          key: terraform-oci-state-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            terraform-oci-state-${{ github.ref_name }}-
+
+      - name: Validate deployment inputs
+        env:
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+        run: |
+          missing=0
+          for name in TF_VAR_tenancy_ocid TF_VAR_user_ocid TF_VAR_fingerprint TF_VAR_region TF_VAR_ssh_public_key OCI_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Write OCI API private key
+        env:
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+        run: |
+          umask 077
+          printf '%s' "$OCI_PRIVATE_KEY" > "$RUNNER_TEMP/oci_api_key.pem"
+          chmod 600 "$RUNNER_TEMP/oci_api_key.pem"
+          echo "TF_VAR_private_key_path=$RUNNER_TEMP/oci_api_key.pem" >> "$GITHUB_ENV"
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        if: github.event_name == 'push' || inputs.action == 'plan' || inputs.action == 'apply'
+        run: terraform plan -out=tfplan
+
+      - name: Terraform destroy plan
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+        run: terraform plan -destroy -out=tfplan
+
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-oci-plan-${{ github.run_id }}
+          path: deploy/terraform/tfplan
+          retention-days: 7
+
+      - name: Terraform apply
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.auto_approve
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform destroy
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy' && inputs.auto_approve
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform output
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.auto_approve
+        run: terraform output
+
+      - name: Save Terraform state cache
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.auto_approve
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            deploy/terraform/terraform.tfstate
+            deploy/terraform/terraform.tfstate.backup
+          key: terraform-oci-state-${{ github.ref_name }}-${{ github.run_id }}

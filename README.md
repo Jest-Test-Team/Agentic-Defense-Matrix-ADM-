@@ -269,6 +269,34 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 | macOS | `deploy/packaging/macos/install.sh` | launchd |
 | Linux | `deploy/packaging/linux/install.sh` | systemd |
 
+### Oracle Cloud Terraform
+
+GitHub Actions workflow: `.github/workflows/terraform-oci.yml`
+
+Required repository secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `OCI_TENANCY_OCID` | OCI tenancy OCID |
+| `OCI_USER_OCID` | OCI API user OCID |
+| `OCI_FINGERPRINT` | OCI API key fingerprint |
+| `OCI_PRIVATE_KEY` | PEM contents of the OCI API private key |
+| `ADM_SSH_PUBLIC_KEY` | SSH public key installed on the ADM instance |
+
+Optional repository settings:
+
+| Setting | Type | Default |
+|---------|------|---------|
+| `OCI_REGION` | Secret | `us-ashburn-1` |
+| `ADM_OCPUS` | Variable | `4` |
+| `ADM_MEMORY_IN_GBS` | Variable | `24` |
+| `ADM_VOLUME_SIZE_GBS` | Variable | `100` |
+| `ADM_DOCKER_COMPOSE_VERSION` | Variable | `v2.29.1` |
+
+Pull requests run `terraform fmt`, `init`, and `validate`. Pushes to `main` run a plan. Use the manual **Terraform OCI** workflow dispatch with `action=apply` and `auto_approve=true` to deploy to OCI, or `action=destroy` and `auto_approve=true` to tear it down.
+
+The current Terraform backend is local, so the workflow caches `terraform.tfstate` between manual runs. For long-lived or shared infrastructure, move state to a real remote backend before relying on this from multiple branches or operators.
+
 ### Manual Installation
 
 ```bash

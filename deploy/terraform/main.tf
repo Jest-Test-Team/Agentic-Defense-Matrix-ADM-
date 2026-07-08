@@ -95,13 +95,13 @@ resource "oci_core_security_list" "adm_sl" {
 }
 
 resource "oci_core_subnet" "adm_subnet" {
-  compartment_id      = var.tenancy_ocid
-  vcn_id              = oci_core_vcn.adm_vcn.id
-  cidr_block          = "10.0.0.0/24"
-  display_name        = "adm-subnet"
-  route_table_id      = oci_core_route_table.adm_rt.id
-  security_list_ids   = [oci_core_security_list.adm_sl.id]
-  dns_label           = "adm"
+  compartment_id    = var.tenancy_ocid
+  vcn_id            = oci_core_vcn.adm_vcn.id
+  cidr_block        = "10.0.0.0/24"
+  display_name      = "adm-subnet"
+  route_table_id    = oci_core_route_table.adm_rt.id
+  security_list_ids = [oci_core_security_list.adm_sl.id]
+  dns_label         = "adm"
 }
 
 resource "oci_core_instance" "adm_instance" {
@@ -135,13 +135,13 @@ resource "oci_core_instance" "adm_instance" {
 
   agent_config {
     are_all_plugins_disabled = false
-    is_monitoring_disabled  = false
+    is_monitoring_disabled   = false
   }
 }
 
 resource "oci_core_volume" "adm_volume" {
-  compartment_id      = var.tenancy_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  compartment_id       = var.tenancy_ocid
+  availability_domain  = data.oci_identity_availability_domains.ads.availability_domains[0].name
   display_name         = "adm-data"
   size_in_gbs          = var.volume_size_gbs
   volume_backup_policy = "disabled"

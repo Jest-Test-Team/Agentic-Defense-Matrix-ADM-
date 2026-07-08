@@ -65,3 +65,4 @@ tmp/
 temp/
 .cache/
 OCI.LOCAL.ENV
+scripts/SET-UP-GHA-SECRECTS.SH

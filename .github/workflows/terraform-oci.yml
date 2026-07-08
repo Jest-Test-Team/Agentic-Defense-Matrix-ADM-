@@ -27,6 +27,16 @@ on:
         required: true
         default: false
         type: boolean
+      existing_subnet_id:
+        description: Optional OCI subnet OCID to reuse. Required for apply unless allow_create_network is true.
+        required: false
+        default: ''
+        type: string
+      allow_create_network:
+        description: Allow apply to create a new OCI VCN/subnet when existing_subnet_id is empty
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -44,7 +54,7 @@ env:
   TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
   TF_VAR_region: ${{ secrets.OCI_REGION || 'us-ashburn-1' }}
   TF_VAR_ssh_public_key: ${{ secrets.ADM_SSH_PUBLIC_KEY }}
-  TF_VAR_existing_subnet_id: ${{ vars.ADM_EXISTING_SUBNET_ID || '' }}
+  TF_VAR_existing_subnet_id: ${{ inputs.existing_subnet_id || vars.ADM_EXISTING_SUBNET_ID || '' }}
   TF_VAR_ocpus: ${{ vars.ADM_OCPUS || 4 }}
   TF_VAR_memory_in_gbs: ${{ vars.ADM_MEMORY_IN_GBS || 24 }}
   TF_VAR_volume_size_gbs: ${{ vars.ADM_VOLUME_SIZE_GBS || 100 }}
@@ -115,6 +125,26 @@ jobs:
           done
           exit "$missing"
 
+      - name: Validate manual apply intent
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+        run: |
+          if [ "${{ inputs.auto_approve }}" != "true" ]; then
+            echo "::error::Actual deployment requires auto_approve=true."
+            exit 1
+          fi
+
+          if [ -z "$TF_VAR_existing_subnet_id" ] && [ "${{ inputs.allow_create_network }}" != "true" ]; then
+            echo "::error::Apply would create a new OCI VCN/subnet, but existing_subnet_id is empty and allow_create_network=false."
+            echo "::error::Your last apply failed with OCI vcn-count. Re-run with existing_subnet_id set to an existing subnet OCID, or explicitly set allow_create_network=true if your OCI VCN quota allows a new VCN."
+            exit 1
+          fi
+
+          if [ -n "$TF_VAR_existing_subnet_id" ]; then
+            echo "Applying into existing subnet: ${TF_VAR_existing_subnet_id:0:24}..."
+          else
+            echo "::warning::Applying with allow_create_network=true. Terraform may create a new OCI VCN/subnet and can fail if the tenancy VCN quota is exhausted."
+          fi
+
       - name: Write OCI API private key
         env:
           OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
@@ -153,6 +183,18 @@ jobs:
       - name: Terraform output
         if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.auto_approve
         run: terraform output
+
+      - name: Deployment summary
+        if: always() && github.event_name == 'workflow_dispatch'
+        run: |
+          {
+            echo "## Terraform OCI"
+            echo
+            echo "- Init and validate checks Terraform syntax/provider schema."
+            echo "- Plan previews what Terraform would create/change."
+            echo "- Actual deployment only happens for manual runs with action=apply and auto_approve=true."
+            echo "- To avoid OCI vcn-count failures, provide existing_subnet_id or set repo variable ADM_EXISTING_SUBNET_ID."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save Terraform state cache
         if: always() && github.event_name == 'workflow_dispatch' && inputs.auto_approve

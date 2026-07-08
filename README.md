@@ -82,7 +82,7 @@ agentic-defense-matrix/
 │       └── telemetry.rs           # OTel event export
 ├── deploy/
 │   ├── docker-compose.yml         # Full stack orchestration
-│   ├── Dockerfile.go              # Multi-stage Go build
+│   ├── Dockerfile.services        # Multi-stage Go build
 │   ├── Dockerfile.rust            # Rust watchdog build
 │   ├── Dockerfile.opa             # OPA sidecar
 │   ├── watchdog.toml              # Watchdog configuration

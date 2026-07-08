@@ -46,7 +46,7 @@ services:
   gateway:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.go
+      dockerfile: deploy/Dockerfile.services
       target: gateway
     container_name: adm-gateway
     ports:
@@ -81,7 +81,7 @@ services:
   siem:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.go
+      dockerfile: deploy/Dockerfile.services
       target: siem
     container_name: adm-siem
     ports:
@@ -134,7 +134,7 @@ services:
   planner:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.go
+      dockerfile: deploy/Dockerfile.services
       target: planner
     container_name: adm-planner
     environment:
@@ -157,7 +157,7 @@ services:
   executor:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.go
+      dockerfile: deploy/Dockerfile.services
       target: executor
     container_name: adm-executor
     environment:
@@ -179,7 +179,7 @@ services:
   summarizer:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.go
+      dockerfile: deploy/Dockerfile.services
       target: summarizer
     container_name: adm-summarizer
     environment:
@@ -248,7 +248,7 @@ services:
   control-plane:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.go
+      dockerfile: deploy/Dockerfile.services
       target: control-plane
     container_name: adm-control-plane
     ports:

@@ -105,6 +105,19 @@ data "oci_core_subnets" "by_vcn" {
   vcn_id         = each.key
 }
 
+# Custom quota policies override service limits and produce QuotaExceeded
+# errors that cite the policy name (e.g. "bootVolumeQuota"); surface every
+# policy and its statements to explain such failures.
+data "oci_limits_quotas" "all" {
+  compartment_id = var.tenancy_ocid
+}
+
+data "oci_limits_quota" "detail" {
+  for_each = { for q in data.oci_limits_quotas.all.quotas : q.name => q.id }
+
+  quota_id = each.value
+}
+
 # Storage diagnostics: the Always Free block storage allowance is shared by
 # boot volumes, block volumes, and their backups across all compartments.
 data "oci_limits_resource_availability" "block_storage_gb" {

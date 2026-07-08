@@ -11,6 +11,16 @@ output "compute_diagnostics" {
   }
 }
 
+output "quota_policies" {
+  description = "Custom quota policies in the tenancy; these override service limits"
+  value = [
+    for name, d in data.oci_limits_quota.detail : {
+      name       = name
+      statements = d.statements
+    }
+  ]
+}
+
 output "storage_diagnostics" {
   description = "Block storage quota usage and all boot/block volumes per compartment"
   value = {

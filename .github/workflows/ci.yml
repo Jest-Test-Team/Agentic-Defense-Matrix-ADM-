@@ -20,9 +20,10 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          skip-cache: true
 
   test-go:
     name: Go Tests
@@ -93,12 +94,13 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       - name: Build Go services
         env:
+          CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p bin
-          CGO_ENABLED=0 go build -ldflags="-w -s" -o bin/adm-gateway-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/gateway
-          CGO_ENABLED=0 go build -ldflags="-w -s" -o bin/adm-siem-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/siem_engine
+          go build -ldflags="-w -s" -o bin/adm-gateway-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/gateway
+          go build -ldflags="-w -s" -o bin/adm-siem-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/siem_engine
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

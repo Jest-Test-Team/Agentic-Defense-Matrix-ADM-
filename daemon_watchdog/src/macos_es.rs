@@ -1,6 +1,8 @@
 use crate::config::Config;
 use anyhow::Result;
-use tracing::{info, warn};
+#[cfg(target_os = "macos")]
+use tracing::info;
+use tracing::warn;
 
 #[cfg(target_os = "macos")]
 pub fn initialize(_config: &Config) -> Result<()> {

@@ -261,6 +261,9 @@ func TestRT027_CrossSession(t *testing.T) {
 		"application/json",
 		bytes.NewReader(body1),
 	)
+	if resp1 == nil {
+		t.Skipf("gateway is not running at %s", h.GatewayURL)
+	}
 	resp1.Body.Close()
 
 	// Session 2: Try to trigger contaminated behavior
@@ -277,6 +280,9 @@ func TestRT027_CrossSession(t *testing.T) {
 		"application/json",
 		bytes.NewReader(body2),
 	)
+	if resp2 == nil {
+		t.Skipf("gateway is not running at %s", h.GatewayURL)
+	}
 	defer resp2.Body.Close()
 
 	var chatResp ChatResponse

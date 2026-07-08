@@ -83,17 +83,20 @@ func FuzzPolicyLoad(f *testing.F) {
 		engine := NewEngine()
 
 		// Loading should not panic
-		_ = engine.LoadPolicy(id, name, rego, "test")
-
-		// Retrieving should work
-		policy, err := engine.GetPolicy(id)
-		if id == "" {
-			if err == nil {
-				t.Errorf("expected error for empty id")
+		loadErr := engine.LoadPolicy(id, name, rego, "test")
+		if id == "" || rego == "" {
+			if loadErr == nil {
+				t.Errorf("expected load error for id=%q rego=%q", id, rego)
 			}
 			return
 		}
+		if loadErr != nil {
+			t.Errorf("unexpected load error: %v", loadErr)
+			return
+		}
 
+		// Retrieving should work
+		policy, err := engine.GetPolicy(id)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			return

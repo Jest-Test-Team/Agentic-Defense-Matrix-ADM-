@@ -30,6 +30,9 @@ func NewEngine() *Engine {
 
 // LoadPolicy adds or updates a policy.
 func (e *Engine) LoadPolicy(id, name, regoSource, description string) error {
+	if id == "" {
+		return fmt.Errorf("policy id cannot be empty")
+	}
 	if regoSource == "" {
 		return fmt.Errorf("rego source cannot be empty")
 	}
@@ -73,19 +76,19 @@ func (e *Engine) ListPolicies() []*Policy {
 
 // EvaluationRequest is the input for policy evaluation.
 type EvaluationRequest struct {
-	PolicyID       string            `json:"policy_id"`
-	AgentRole      string            `json:"agent_role"`
-	ToolName       string            `json:"tool_name"`
-	SessionID      string            `json:"session_id"`
-	RequestCount   int               `json:"request_count"`
-	Context        map[string]string `json:"context"`
+	PolicyID     string            `json:"policy_id"`
+	AgentRole    string            `json:"agent_role"`
+	ToolName     string            `json:"tool_name"`
+	SessionID    string            `json:"session_id"`
+	RequestCount int               `json:"request_count"`
+	Context      map[string]string `json:"context"`
 }
 
 // EvaluationResult is the outcome of policy evaluation.
 type EvaluationResult struct {
-	Allowed         bool     `json:"allowed"`
-	Reasons         []string `json:"reasons"`
-	EvaluationTimeNS int64   `json:"evaluation_time_ns"`
+	Allowed          bool     `json:"allowed"`
+	Reasons          []string `json:"reasons"`
+	EvaluationTimeNS int64    `json:"evaluation_time_ns"`
 }
 
 // Evaluate evaluates a request against a policy.

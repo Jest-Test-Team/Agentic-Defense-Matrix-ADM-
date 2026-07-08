@@ -59,7 +59,8 @@ func (h *TestHarness) SendPrompt(t *testing.T, prompt string) (*ChatResponse, in
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
+		if strings.Contains(err.Error(), "connection refused") ||
+			strings.Contains(err.Error(), "operation not permitted") {
 			t.Skipf("gateway is not running at %s: %v", h.GatewayURL, err)
 		}
 		return nil, 0, err

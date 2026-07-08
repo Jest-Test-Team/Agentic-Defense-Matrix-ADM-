@@ -20,7 +20,10 @@ impl EgressBlocker {
             "deny" => FilterAction::Deny,
             "allow" => FilterAction::Allow,
             _ => {
-                warn!("Unknown egress policy '{}', defaulting to deny", config.egress.default_policy);
+                warn!(
+                    "Unknown egress policy '{}', defaulting to deny",
+                    config.egress.default_policy
+                );
                 FilterAction::Deny
             }
         };

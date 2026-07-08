@@ -177,7 +177,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let config = Config::load(&config_path).unwrap_or_else(|e| {
-        warn!("Failed to load config from {}: {}, using defaults", config_path, e);
+        warn!(
+            "Failed to load config from {}: {}, using defaults",
+            config_path, e
+        );
         Config {
             daemon: config::DaemonConfig {
                 socket_path: "/var/run/adm/watchdog.sock".to_string(),

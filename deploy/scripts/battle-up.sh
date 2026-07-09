@@ -35,11 +35,23 @@ export DATABASE_URL
 export ELASTIC_URL="${ELASTIC_URL:-}"
 
 cd "$REPO"
-BASE=(docker compose -f docker-compose.yml)
 BATTLE=(docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml)
 
+# Prebuilt images live in GHCR so the 1 GB micro never compiles Go/Rust on-box.
+# If the packages are private, provide GHCR_USER/GHCR_TOKEN (in battle.env) for
+# an authenticated pull; public packages need no login.
+if [[ -n "${GHCR_TOKEN:-}" && -n "${GHCR_USER:-}" ]]; then
+  echo "[battle] logging in to GHCR as $GHCR_USER..."
+  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin || \
+    echo "[battle] WARNING: GHCR login failed; assuming public images"
+fi
+
+echo "[battle] pulling prebuilt images from GHCR..."
+"${BATTLE[@]}" pull --ignore-buildable 2>/dev/null || "${BATTLE[@]}" pull || \
+  echo "[battle] WARNING: image pull incomplete; are the GHCR packages public?"
+
 echo "[battle] bringing up base blue-team stack..."
-"${BASE[@]}" up -d redis ollama gateway siem policy planner executor summarizer
+"${BATTLE[@]}" up -d --no-build redis ollama gateway siem policy planner executor summarizer
 
 echo "[battle] waiting for ollama to accept commands..."
 for _ in $(seq 1 60); do
@@ -51,8 +63,8 @@ echo "[battle] pulling tiny model '$MODEL' (fits the 1 GB micro)..."
 docker exec adm-ollama ollama pull "$MODEL" || \
   echo "[battle] WARNING: model pull failed; the gateway may not answer chat attacks"
 
-echo "[battle] building and launching battle overlay (analysis, redteam, greenteam)..."
-"${BATTLE[@]}" up -d --build
+echo "[battle] launching battle overlay (analysis, redteam, greenteam)..."
+"${BATTLE[@]}" up -d --no-build
 
 echo
 echo "[battle] up. Services:"

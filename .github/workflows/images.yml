@@ -1,0 +1,72 @@
+name: Build Images
+
+# Build every ADM service image in CI and push to GHCR so the 1 GB OCI micro can
+# pull prebuilt images instead of compiling Go/Rust on-box (which OOMs). Images
+# are linux/amd64 to match the E2.1.Micro shape.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'analysis/**'
+      - 'daemon_watchdog/**'
+      - 'deploy/Dockerfile.services'
+      - 'deploy/Dockerfile.battle'
+      - 'deploy/Dockerfile.analysis'
+      - 'deploy/Dockerfile.rust'
+      - 'deploy/Dockerfile.opa'
+      - 'deploy/spire/**'
+      - '.github/workflows/images.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: jest-test-team
+
+jobs:
+  images:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: gateway,       file: deploy/Dockerfile.services, target: gateway }
+          - { name: siem,          file: deploy/Dockerfile.services, target: siem }
+          - { name: planner,       file: deploy/Dockerfile.services, target: planner }
+          - { name: executor,      file: deploy/Dockerfile.services, target: executor }
+          - { name: summarizer,    file: deploy/Dockerfile.services, target: summarizer }
+          - { name: control-plane, file: deploy/Dockerfile.services, target: control-plane }
+          - { name: redteam,       file: deploy/Dockerfile.battle,   target: redteam }
+          - { name: greenteam,     file: deploy/Dockerfile.battle,   target: greenteam }
+          - { name: analysis,      file: deploy/Dockerfile.analysis, target: '' }
+          - { name: watchdog,      file: deploy/Dockerfile.rust,     target: '' }
+          - { name: policy,        file: deploy/Dockerfile.opa,      target: '' }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/adm-${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

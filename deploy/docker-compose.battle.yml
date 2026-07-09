@@ -16,6 +16,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.analysis
+    image: ghcr.io/jest-test-team/adm-analysis:latest
     container_name: adm-analysis
     ports:
       - "8090:8090"
@@ -34,6 +35,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.battle
       target: redteam
+    image: ghcr.io/jest-test-team/adm-redteam:latest
     container_name: adm-redteam
     environment:
       - ADM_GATEWAY_URL=http://gateway:8080
@@ -55,6 +57,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.battle
       target: greenteam
+    image: ghcr.io/jest-test-team/adm-greenteam:latest
     container_name: adm-greenteam
     environment:
       - ADM_GATEWAY_URL=http://gateway:8080

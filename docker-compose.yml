@@ -49,6 +49,7 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: gateway
     container_name: adm-gateway
+    image: ghcr.io/jest-test-team/adm-gateway:latest
     ports:
       - "8080:8080"
       - "9090:9090"
@@ -84,6 +85,7 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: siem
     container_name: adm-siem
+    image: ghcr.io/jest-test-team/adm-siem:latest
     ports:
       - "9091:9091"
     environment:
@@ -110,6 +112,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile.opa
     container_name: adm-policy
+    image: ghcr.io/jest-test-team/adm-policy:latest
     ports:
       - "8181:8181"
     volumes:
@@ -137,6 +140,7 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: planner
     container_name: adm-planner
+    image: ghcr.io/jest-test-team/adm-planner:latest
     labels:
       adm.role: agent
     environment:
@@ -162,6 +166,7 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: executor
     container_name: adm-executor
+    image: ghcr.io/jest-test-team/adm-executor:latest
     labels:
       adm.role: agent
     environment:
@@ -186,6 +191,7 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: summarizer
     container_name: adm-summarizer
+    image: ghcr.io/jest-test-team/adm-summarizer:latest
     labels:
       adm.role: agent
     environment:
@@ -213,6 +219,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile.rust
     container_name: adm-watchdog
+    image: ghcr.io/jest-test-team/adm-watchdog:latest
     privileged: true
     pid: host
     network_mode: host
@@ -257,6 +264,7 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: control-plane
     container_name: adm-control-plane
+    image: ghcr.io/jest-test-team/adm-control-plane:latest
     ports:
       - "9092:9092"
     environment:

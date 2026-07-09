@@ -87,13 +87,14 @@ done
 docker stop adm-ollama-pull 2>/dev/null || true
 docker rm adm-ollama-pull 2>/dev/null || true
 
-# Build and start ADM stack
-log "Building ADM stack..."
+# Pull prebuilt images (from GHCR) and start ADM stack. The 1 GB micro cannot
+# compile Go/Rust on-box, so we pull rather than build.
+log "Pulling ADM images..."
 cd "$ADM_REPO"
-sudo -u $ADM_USER docker compose build
+sudo -u $ADM_USER docker compose pull || warn "Some images failed to pull (are the GHCR packages public?)"
 
 log "Starting ADM stack..."
-sudo -u $ADM_USER docker compose up -d
+sudo -u $ADM_USER docker compose up -d --no-build
 
 # Wait for health checks
 log "Waiting for services to be healthy..."

@@ -322,6 +322,8 @@ sudo systemctl start adm
 - [Data Flow](docs/architecture/data-flow.md) — Event pipelines
 - [Security Architecture](docs/architecture/security.md) — Zero trust model
 - [Threat Model](docs/threat-model.md) — MITRE ATLAS mapping
+- [Battle Orchestration](docs/battle-orchestration.md) — Red vs Blue vs Green exercise + analysis engine (db/be/fe)
+- [OCI Deployment Usage](docs/instruction.md) — connecting to and operating the deployed stack
 - [ADRs](docs/adr/) — Architecture decision records
 
 ---

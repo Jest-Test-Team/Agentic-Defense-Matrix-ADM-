@@ -35,7 +35,7 @@ SELECT
     a.outcome                         AS attack_outcome,
     r.ts                              AS remediation_ts,
     r.outcome                         AS remediation_outcome,
-    EXTRACT(EPOCH FROM (r.ts - a.ts)) AS mttr_seconds
+    EXTRACT(EPOCH FROM (r.ts - a.ts))::double precision AS mttr_seconds
 FROM battle_events a
 LEFT JOIN LATERAL (
     SELECT ts, outcome

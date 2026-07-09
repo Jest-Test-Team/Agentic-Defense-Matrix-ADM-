@@ -65,6 +65,16 @@ jobs:
         run: cargo test
         working-directory: daemon_watchdog
 
+  build-analysis:
+    name: Analysis Engine Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build analysis engine
+        run: cargo build --release
+        working-directory: analysis
+
   build-matrix:
     name: Build (${{ matrix.os }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
@@ -101,6 +111,8 @@ jobs:
           mkdir -p bin
           go build -ldflags="-w -s" -o bin/adm-gateway-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/gateway
           go build -ldflags="-w -s" -o bin/adm-siem-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/siem_engine
+          go build -ldflags="-w -s" -o bin/adm-redteam-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/redteam_agent
+          go build -ldflags="-w -s" -o bin/adm-greenteam-${{ matrix.goos }}-${{ matrix.arch }} ./cmd/greenteam_agent
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         continue-on-error: true

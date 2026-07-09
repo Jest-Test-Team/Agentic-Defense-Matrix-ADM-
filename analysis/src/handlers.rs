@@ -142,7 +142,7 @@ pub async fn stats(State(st): State<Arc<AppState>>) -> impl IntoResponse {
     };
 
     let mttr: Option<f64> = sqlx::query_scalar(
-        "SELECT AVG(mttr_seconds) FROM battle_sessions \
+        "SELECT AVG(mttr_seconds)::double precision FROM battle_sessions \
          WHERE attack_outcome='allowed' AND remediation_ts IS NOT NULL",
     )
     .fetch_one(&st.pool)

@@ -238,6 +238,40 @@ wait for the gateway healthcheck. The red team ramps only after the gateway is
 
 ---
 
+## 8.5 Verifying connections & running status
+
+You don't test Neon / Bonsai / OCI separately — the running app **self-reports
+all three** through its health/stats endpoints. After deploy, run these against
+the instance's public IP:
+
+| Connection | How it's verified | "Good" looks like |
+|---|---|---|
+| **OCI app running** | `curl http://<ip>:8080/v1/health` and `curl http://<ip>:8090/health` | `{"status":"ok"}` on both |
+| **OCI → Neon (Postgres)** | `curl http://<ip>:8090/ready` | `{"ready":true}` — analysis only reports ready once it has connected to Neon and applied migrations |
+| **OCI → Bonsai (Elastic)** | `curl http://<ip>:8090/api/stats` → `elastic_enabled` | `"elastic_enabled": true` = Bonsai wired; `false` = Postgres-only (still fully functional) |
+| **Red→Blue→Green loop** | `curl http://<ip>:8090/api/stats` counters | `attacks` rising; `blocked` / `landed` / `remediations` moving |
+
+One-shot check:
+
+```bash
+IP=<public-ip>
+echo "gateway:";   curl -s http://$IP:8080/v1/health
+echo "analysis:";  curl -s http://$IP:8090/health
+echo "neon:";      curl -s http://$IP:8090/ready
+echo "bonsai+score:"; curl -s http://$IP:8090/api/stats | jq '{elastic_enabled, attacks, blocked, landed, remediations, mttr_seconds}'
+```
+
+On the box itself, container status is `docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml ps` (or `sudo -u adm /opt/adm/repo/deploy/scripts/status.sh`).
+
+### DNS / static IP
+
+The instance's public IP changes on every recreation, so before any DNS: attach
+a **reserved public IP** (OCI Always Free includes one) so the address is stable
+across redeploys. DNS then maps a name → that IP only; it does **not** remove the
+`:8090` port — for a clean `https://name/` you'd add a reverse proxy (e.g. Caddy)
+on 443 in front of the dashboard. Recommended order: get it running → reserve a
+static IP → (optional) DNS + reverse proxy.
+
 ## 9. Scoring model (how "who's winning" is computed)
 
 Per campaign, from the durable log:

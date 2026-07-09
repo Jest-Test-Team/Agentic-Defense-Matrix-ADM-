@@ -1,0 +1,81 @@
+# Battle-orchestration overlay: red + green + analysis.
+#
+# Layer on the base stack:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml up -d
+#
+# Topology: OCI micro + free managed data. Postgres (Neon) and the optional
+# Elasticsearch (Bonsai) are managed clouds, NOT containers here — supply their
+# URLs via the environment / an .env file:
+#   DATABASE_URL=postgres://user:pw@ep-x.neon.tech/adm?sslmode=require
+#   ELASTIC_URL=https://user:pw@xxx.bonsaisearch.net   # optional
+#
+# Dashboard: http://<host>:8090
+
+services:
+  analysis:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.analysis
+    container_name: adm-analysis
+    ports:
+      - "8090:8090"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?set DATABASE_URL to your Neon postgres connection string}
+      - ELASTIC_URL=${ELASTIC_URL:-}
+      - ADM_ANALYSIS_BIND=0.0.0.0:8090
+      - RUST_LOG=info
+    restart: unless-stopped
+    networks:
+      - adm-internal
+      - adm-public
+
+  redteam:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.battle
+      target: redteam
+    container_name: adm-redteam
+    environment:
+      - ADM_GATEWAY_URL=http://gateway:8080
+      - ADM_ANALYSIS_URL=http://analysis:8090
+      - ADM_REDIS_URL=redis://redis:6379
+      - ADM_CORPUS_SIZE=${ADM_CORPUS_SIZE:-10000}
+      - ADM_ATTACK_INTERVAL_MS=${ADM_ATTACK_INTERVAL_MS:-500}
+      - ADM_ATTACK_CONCURRENCY=${ADM_ATTACK_CONCURRENCY:-2}
+      - ADM_MODEL=${ADM_MODEL:-qwen2.5:0.5b}
+    depends_on:
+      - analysis
+    restart: unless-stopped
+    networks:
+      - adm-internal
+      - adm-public
+
+  greenteam:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.battle
+      target: greenteam
+    container_name: adm-greenteam
+    environment:
+      - ADM_GATEWAY_URL=http://gateway:8080
+      - ADM_SIEM_URL=http://siem:9091
+      - ADM_ANALYSIS_URL=http://analysis:8090
+      - ADM_REDIS_URL=redis://redis:6379
+      - ADM_GREEN_DRY_RUN=${ADM_GREEN_DRY_RUN:-false}
+      - ADM_AGENT_LABEL=adm.role=agent
+    volumes:
+      # Required for real container containment; remove and set ADM_GREEN_DRY_RUN=true
+      # on hosts where mounting the docker socket is not acceptable.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - analysis
+    restart: unless-stopped
+    networks:
+      - adm-internal
+      - adm-public
+
+networks:
+  adm-internal:
+    driver: bridge
+  adm-public:
+    driver: bridge

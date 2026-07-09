@@ -1,0 +1,21 @@
+# Build for the Rust analysis engine (backend + bundled static dashboard).
+# The web/ dir is embedded at compile time via include_str!, so the runtime
+# image needs only the binary.
+
+FROM rust:1.83-slim AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app/analysis
+# Copy the crate (Cargo.toml, src, migrations, web) and build.
+COPY analysis/ ./
+RUN cargo build --release
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/analysis/target/release/adm-analysis /usr/local/bin/adm-analysis
+# Migrations are read at runtime by sqlx::migrate! from the embedded path, but we
+# also ship them so an operator can inspect/re-run them.
+COPY analysis/migrations /opt/adm/migrations
+EXPOSE 8090
+ENTRYPOINT ["adm-analysis"]

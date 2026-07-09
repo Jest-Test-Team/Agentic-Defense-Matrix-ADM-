@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADM Battle Console — Red vs Blue vs Green</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131824; --line: #232a3a; --txt: #e6e9f0; --dim: #8b94a7;
+    --red: #ff5c6c; --blue: #4aa8ff; --green: #37d67a; --amber: #ffb454;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt);
+         font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line);
+           display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+  header .sub { color: var(--dim); font-size: 12px; }
+  #conn { margin-left: auto; font-size: 12px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+         background: var(--dim); margin-right: 6px; vertical-align: middle; }
+  .dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  main { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+          padding: 14px 16px; }
+  .tile .label { color: var(--dim); font-size: 11px; text-transform: uppercase;
+                 letter-spacing: .6px; }
+  .tile .value { font-size: 26px; font-weight: 600; margin-top: 4px; }
+  .tile.red .value { color: var(--red); }
+  .tile.blue .value { color: var(--blue); }
+  .tile.green .value { color: var(--green); }
+  .tile.amber .value { color: var(--amber); }
+  h2 { font-size: 13px; color: var(--dim); text-transform: uppercase;
+       letter-spacing: .6px; margin: 24px 0 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+  .feed { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+          height: 380px; overflow-y: auto; padding: 8px; }
+  .row { padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 12.5px;
+         display: flex; gap: 8px; align-items: baseline; }
+  .row:last-child { border-bottom: none; }
+  .tag { font-weight: 700; padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+  .tag.red { background: rgba(255,92,108,.15); color: var(--red); }
+  .tag.blue { background: rgba(74,168,255,.15); color: var(--blue); }
+  .tag.green { background: rgba(55,214,122,.15); color: var(--green); }
+  .row .tech { color: var(--txt); }
+  .row .out { margin-left: auto; color: var(--dim); }
+  .out.allowed { color: var(--red); } .out.blocked { color: var(--blue); }
+  .out.revoked, .out.restarted, .out.killed { color: var(--green); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 4px 8px; font-size: 12px; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: 500; }
+  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; display: inline-block; width: 90px; vertical-align: middle; }
+  .bar > i { display: block; height: 100%; background: var(--red); }
+  footer { color: var(--dim); font-size: 11px; padding: 16px 24px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔️ ADM Battle Console</h1>
+  <span class="sub">Red attacks · Blue defends · Green remediates · durable log</span>
+  <span id="conn"><span class="dot" id="dot"></span><span id="conntxt">connecting…</span></span>
+</header>
+<main>
+  <div class="tiles">
+    <div class="tile red"><div class="label">Attacks</div><div class="value" id="t-attacks">–</div></div>
+    <div class="tile blue"><div class="label">Block rate</div><div class="value" id="t-block">–</div></div>
+    <div class="tile blue"><div class="label">Detection rate</div><div class="value" id="t-detect">–</div></div>
+    <div class="tile red"><div class="label">Landed</div><div class="value" id="t-landed">–</div></div>
+    <div class="tile green"><div class="label">Remediations</div><div class="value" id="t-remed">–</div></div>
+    <div class="tile green"><div class="label">MTTR</div><div class="value" id="t-mttr">–</div></div>
+    <div class="tile amber"><div class="label">Residual risk</div><div class="value" id="t-residual">–</div></div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <h2>Live battle feed</h2>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div>
+      <h2>Per-technique (blocked ▏landed)</h2>
+      <div class="feed"><table id="tech"><thead><tr><th>Technique</th><th>Blocked</th><th>Landed</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</main>
+<footer id="foot">Postgres durable log · Elastic search: unknown</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const pct = x => (x*100).toFixed(1) + '%';
+
+async function refreshStats() {
+  try {
+    const s = await (await fetch('/api/stats')).json();
+    $('t-attacks').textContent = s.attacks;
+    $('t-block').textContent   = pct(s.block_rate);
+    $('t-detect').textContent  = pct(s.detection_rate);
+    $('t-landed').textContent  = s.landed;
+    $('t-remed').textContent   = s.remediations;
+    $('t-mttr').textContent    = s.mttr_seconds == null ? '–' : s.mttr_seconds.toFixed(1) + 's';
+    $('t-residual').textContent = s.residual_risk;
+    const tb = document.querySelector('#tech tbody');
+    tb.innerHTML = '';
+    const maxL = Math.max(1, ...s.by_technique.map(t => t.landed + t.blocked));
+    for (const t of s.by_technique) {
+      const tr = document.createElement('tr');
+      const w = Math.round((t.landed / maxL) * 90);
+      tr.innerHTML = `<td>${t.technique}</td><td>${t.blocked}</td>
+        <td>${t.landed} <span class="bar"><i style="width:${w}px"></i></span></td>`;
+      tb.appendChild(tr);
+    }
+    $('foot').textContent = 'Postgres durable log · Elastic search: ' +
+      (s.elastic_enabled ? 'enabled' : 'disabled (Postgres-only)');
+  } catch (e) { /* keep last values */ }
+}
+
+function addRow(ev) {
+  const feed = $('feed');
+  const row = document.createElement('div');
+  row.className = 'row';
+  const t = ev.team || '?';
+  row.innerHTML = `<span class="tag ${t}">${t.toUpperCase()}</span>
+    <span class="tech">${ev.technique||ev.kind||''}</span>
+    <span class="out ${ev.outcome||''}">${ev.outcome||''}</span>`;
+  feed.prepend(row);
+  while (feed.childElementCount > 200) feed.removeChild(feed.lastChild);
+}
+
+function connect() {
+  const es = new EventSource('/api/stream');
+  es.onopen = () => { $('dot').classList.add('live'); $('conntxt').textContent = 'live'; };
+  es.onerror = () => { $('dot').classList.remove('live'); $('conntxt').textContent = 'reconnecting…'; };
+  es.onmessage = e => { try { addRow(JSON.parse(e.data)); } catch(_){} };
+}
+
+refreshStats();
+setInterval(refreshStats, 3000);
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Multi-stage build for the red/green battle services.
+# Usage: docker build -f deploy/Dockerfile.battle --target <redteam|greenteam> .
+
+FROM golang:1.26-alpine AS builder
+RUN apk add --no-cache git ca-certificates tzdata
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/adm-redteam ./cmd/redteam_agent
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/adm-greenteam ./cmd/greenteam_agent
+
+FROM gcr.io/distroless/static-debian12 AS runtime
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+FROM runtime AS redteam
+COPY --from=builder /bin/adm-redteam /usr/local/bin/adm-redteam
+ENTRYPOINT ["adm-redteam"]
+
+FROM runtime AS greenteam
+COPY --from=builder /bin/adm-greenteam /usr/local/bin/adm-greenteam
+ENTRYPOINT ["adm-greenteam"]

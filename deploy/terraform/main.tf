@@ -25,6 +25,16 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
+locals {
+  # A1 host capacity can be exhausted in one availability domain but free in
+  # another. availability_domain_index lets a re-dispatch target a different AD
+  # without editing code; it is clamped to the ADs that actually exist (regions
+  # like ap-tokyo-1 have only one, in which case this is a no-op).
+  ad_count            = length(data.oci_identity_availability_domains.ads.availability_domains)
+  ad_index            = var.availability_domain_index % local.ad_count
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[local.ad_index].name
+}
+
 # The Always Free A1 allowance varies by tenancy and can be zero. Size the
 # instance to what the compute limits actually allow, falling back to the
 # free x86 micro shape when no A1 capacity is granted at all.
@@ -124,13 +134,13 @@ data "oci_limits_resource_availability" "block_storage_gb" {
   compartment_id      = var.tenancy_ocid
   service_name        = "block-storage"
   limit_name          = "total-storage-gb"
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = local.availability_domain
 }
 
 data "oci_core_boot_volumes" "by_compartment" {
   for_each = local.compartments
 
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = local.availability_domain
   compartment_id      = each.value.id
 }
 
@@ -300,7 +310,7 @@ resource "oci_core_network_security_group" "adm_nsg" {
 }
 
 resource "oci_core_network_security_group_security_rule" "adm_nsg_ingress" {
-  for_each = { ssh = 22, gateway = 8080, ollama = 11434 }
+  for_each = { ssh = 22, gateway = 8080, ollama = 11434, analysis = 8090 }
 
   network_security_group_id = oci_core_network_security_group.adm_nsg.id
   direction                 = "INGRESS"
@@ -330,7 +340,7 @@ resource "oci_core_instance" "adm_instance" {
   # requests its boot volume or the combined usage can exceed the cap.
   depends_on = [oci_core_volume.adm_volume]
 
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = local.availability_domain
   compartment_id      = var.tenancy_ocid
   display_name        = "adm-instance"
   shape               = local.instance_shape
@@ -372,7 +382,7 @@ resource "oci_core_instance" "adm_instance" {
 
 resource "oci_core_volume" "adm_volume" {
   compartment_id      = var.tenancy_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = local.availability_domain
   display_name        = "adm-data"
   size_in_gbs         = var.volume_size_gbs
 }

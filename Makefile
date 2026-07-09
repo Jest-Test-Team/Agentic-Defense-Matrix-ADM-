@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean docker-up docker-down redteam terraform-init terraform-plan terraform-apply terraform-destroy
+.PHONY: all build test lint clean docker-up docker-down redteam terraform-init terraform-plan terraform-apply terraform-destroy build-battle battle-build battle-up battle-down battle-logs
 
 # Go services
 GATEWAY = cmd/gateway
@@ -92,6 +92,35 @@ redteam-build:
 	@echo "==> Building red team harnesses..."
 	@mkdir -p $(BUILD_DIR)
 	cd tests/redteam && go build -o $(BUILD_DIR)/redteam-runner .
+
+## Battle orchestration (red vs blue vs green + analysis)
+BATTLE_COMPOSE = docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml
+
+build-battle:
+	@echo "==> Building battle services (Go)..."
+	@mkdir -p $(BUILD_DIR)
+	go build -o $(BUILD_DIR)/adm-redteam ./cmd/redteam_agent
+	go build -o $(BUILD_DIR)/adm-greenteam ./cmd/greenteam_agent
+	@echo "==> Building analysis engine (Rust)..."
+	cd analysis && cargo build --release
+	@cp analysis/target/release/adm-analysis $(BUILD_DIR)/adm-analysis
+
+battle-build:
+	@echo "==> Building battle container images..."
+	$(BATTLE_COMPOSE) build analysis redteam greenteam
+
+## Start the full exercise. Requires DATABASE_URL (Neon) in the environment;
+## ELASTIC_URL (Bonsai) is optional.
+battle-up:
+	@echo "==> Starting battle orchestration (dashboard: http://localhost:8090)..."
+	$(BATTLE_COMPOSE) up -d
+
+battle-down:
+	@echo "==> Stopping battle orchestration..."
+	$(BATTLE_COMPOSE) down
+
+battle-logs:
+	$(BATTLE_COMPOSE) logs -f redteam greenteam analysis
 
 ## Clean build artifacts
 clean:

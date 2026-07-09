@@ -137,6 +137,8 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: planner
     container_name: adm-planner
+    labels:
+      adm.role: agent
     environment:
       - ADM_GRPC_PORT=9081
       - ADM_OLLAMA_URL=http://ollama:11434
@@ -160,6 +162,8 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: executor
     container_name: adm-executor
+    labels:
+      adm.role: agent
     environment:
       - ADM_GRPC_PORT=9082
       - ADM_DOCKER_SOCKET=unix:///var/run/docker.sock
@@ -182,6 +186,8 @@ services:
       dockerfile: deploy/Dockerfile.services
       target: summarizer
     container_name: adm-summarizer
+    labels:
+      adm.role: agent
     environment:
       - ADM_GRPC_PORT=9083
       - ADM_OLLAMA_URL=http://ollama:11434

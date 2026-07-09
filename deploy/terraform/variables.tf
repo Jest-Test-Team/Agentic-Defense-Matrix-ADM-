@@ -40,6 +40,12 @@ variable "reuse_discovered_network" {
   default     = true
 }
 
+variable "availability_domain_index" {
+  description = "Which availability domain to launch in (0-based). Cycle this on a re-dispatch to work around 'Out of host capacity' in a specific AD. Clamped to the ADs that exist; single-AD regions like ap-tokyo-1 ignore it."
+  type        = number
+  default     = 0
+}
+
 variable "force_shape" {
   description = "Set to \"micro\" to force VM.Standard.E2.1.Micro instead of A1.Flex, e.g. when the region is out of A1 host capacity. Empty picks automatically."
   type        = string

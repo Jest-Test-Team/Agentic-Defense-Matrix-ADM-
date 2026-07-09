@@ -1,18 +1,17 @@
 #cloud-config
 # ADM Oracle Cloud Always Free - Cloud Init
-# Runs on first boot to set up Docker, Docker Compose, and ADM stack
+# Runs on first boot to set up Docker, Docker Compose, and the ADM stack.
+# Target image: Oracle Linux 8 (dnf-based) — NOT Ubuntu, so Docker is installed
+# from the docker-ce repo rather than the (nonexistent) docker.io package.
 
 package_update: true
-package_upgrade: true
 
+# Only packages that exist in the OL8 base/appstream repos. Docker CE is added
+# via its own repo in runcmd below.
 packages:
-  - docker.io
-  - docker-compose-plugin
   - git
   - curl
   - jq
-  - htop
-  - tmux
 
 users:
   - name: adm
@@ -57,15 +56,28 @@ write_files:
       ADM_OLLAMA_MODEL=${battle_ollama_model}
 
 runcmd:
+  # --- Swap: the 1 GB micro OOM-kills Go/Rust image builds without it. ---
+  - bash -c 'if [ ! -f /swapfile ]; then dd if=/dev/zero of=/swapfile bs=1M count=4096 && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab; fi'
   - sysctl --system
+
+  # --- Docker CE on Oracle Linux 8 (from the docker-ce repo). ---
+  - dnf install -y dnf-utils
+  - dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  - dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   - systemctl enable docker
   - systemctl start docker
   - usermod -aG docker adm
-  - mkdir -p /opt/adm
+
+  # --- Open the host firewall for the ADM ports (OL8 ships firewalld). ---
+  - bash -c 'if systemctl is-active --quiet firewalld; then for p in 8080 8090 11434; do firewall-cmd --permanent --add-port=$p/tcp; done; firewall-cmd --reload; fi'
+
+  # --- Clone and set up the stack. ---
+  - mkdir -p /opt/adm/logs
   - chown -R adm:adm /opt/adm
   - su - adm -c "git clone https://github.com/Jest-Test-Team/Agentic-Defense-Matrix-ADM-.git /opt/adm/repo"
   - su - adm -c "chmod +x /opt/adm/repo/deploy/scripts/*.sh"
-  - su - adm -c "/opt/adm/repo/deploy/scripts/setup.sh"
-  # Launch the red/blue/green battle overlay only when a Neon DATABASE_URL was
-  # provided; otherwise leave the base stack running and skip the exercise.
+  - su - adm -c "/opt/adm/repo/deploy/scripts/setup.sh >> /opt/adm/logs/setup.log 2>&1"
+
+  # --- Launch the red/blue/green battle overlay only when a Neon DATABASE_URL
+  #     was provided; otherwise leave the base stack running. ---
   - su - adm -c "grep -Eq '^DATABASE_URL=.+' /opt/adm/battle.env && /opt/adm/repo/deploy/scripts/battle-up.sh >> /opt/adm/logs/battle.log 2>&1 || echo 'battle: no DATABASE_URL, overlay skipped'"

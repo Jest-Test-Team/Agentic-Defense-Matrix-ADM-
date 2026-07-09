@@ -35,6 +35,14 @@ ADM_LOGS="$ADM_HOME/logs"
 ADM_DATA="$ADM_HOME/data"
 ADM_USER="adm"
 
+# Ollama model: pick up ADM_OLLAMA_MODEL from the battle env if present so the
+# 1 GB micro pulls a tiny model instead of the ~5 GB default it cannot run.
+if [[ -f "$ADM_HOME/battle.env" ]]; then
+    # shellcheck disable=SC1091
+    source "$ADM_HOME/battle.env"
+fi
+ADM_OLLAMA_MODEL="${ADM_OLLAMA_MODEL:-llama3.1:8b}"
+
 # Create directories
 log "Creating ADM directories..."
 mkdir -p "$ADM_HOME" "$ADM_LOGS" "$ADM_DATA"
@@ -60,16 +68,16 @@ else
 fi
 
 # Pull Ollama model
-log "Pulling Ollama model (llama3.1:8b)..."
+log "Pulling Ollama model (${ADM_OLLAMA_MODEL})..."
 docker run -d --name adm-ollama-pull \
     -v ollama-models:/root/.ollama \
     ollama/ollama:latest \
-    ollama pull llama3.1:8b || warn "Ollama pull may take a while"
+    ollama pull ${ADM_OLLAMA_MODEL} || warn "Ollama pull may take a while"
 
 # Wait for model download
 log "Waiting for model download..."
 for i in {1..120}; do
-    if docker exec adm-ollama-pull ollama list 2>/dev/null | grep -q "llama3.1:8b"; then
+    if docker exec adm-ollama-pull ollama list 2>/dev/null | grep -q "${ADM_OLLAMA_MODEL}"; then
         break
     fi
     sleep 5

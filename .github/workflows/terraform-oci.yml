@@ -70,7 +70,7 @@ env:
   TF_VAR_existing_subnet_id: ${{ inputs.existing_subnet_id || vars.ADM_EXISTING_SUBNET_ID || '' }}
   TF_VAR_force_shape: ${{ inputs.shape == 'micro' && 'micro' || '' }}
   TF_VAR_battle_database_url: ${{ secrets.ADM_BATTLE_DATABASE_URL }}
-  TF_VAR_battle_elastic_url: ${{ secrets.ADM_BATTLE_ELASTIC_URL }}
+  TF_VAR_battle_elastic_url: ${{ secrets.ADM_BATTLE_ELASTIC_URL || secrets.ADM_Bonsai_Access }}
   TF_VAR_battle_ollama_model: ${{ vars.ADM_BATTLE_OLLAMA_MODEL || 'qwen2.5:0.5b' }}
   TF_VAR_ocpus: ${{ vars.ADM_OCPUS || 4 }}
   TF_VAR_memory_in_gbs: ${{ vars.ADM_MEMORY_IN_GBS || 24 }}

@@ -80,7 +80,7 @@ jobs:
             goarch: arm64
             ext: ''
             package: pkg
-          - os: macos-13
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             goos: darwin
             goarch: amd64

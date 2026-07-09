@@ -8,8 +8,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Cache dependencies
-COPY daemon_watchdog/Cargo.toml daemon_watchdog/Cargo.lock ./
+# Cache dependencies. Manifests must land in daemon_watchdog/ so the bin path
+# (src/main.rs) resolves there, not at /app.
+COPY daemon_watchdog/Cargo.toml daemon_watchdog/Cargo.lock ./daemon_watchdog/
 RUN mkdir -p daemon_watchdog/src && \
     echo "fn main() {}" > daemon_watchdog/src/main.rs && \
     cd daemon_watchdog && cargo build --release && \

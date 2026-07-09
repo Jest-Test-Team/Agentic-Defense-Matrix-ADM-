@@ -214,3 +214,71 @@ first when a run fails; they were built to explain exactly these failures.
 | Apply fails: `bootVolumeQuota` | Orphaned boot volumes eating the free-tier allowance | Dispatch with `cleanup_axiom_volumes=true`, or delete orphans in console (Block Storage → Boot Volumes, check every compartment) |
 | Apply fails: `vcn-count` | VCN quota exhausted | See `network_diagnostics` in the plan log for what's consuming it |
 | SSH refused | Wrong user | Use `opc@`, not `ubuntu@` |
+
+## 9. Red team agent (running attacks against a deployment)
+
+The OCI deployment above is the **defensive** stack only. The **red team
+agent** is a separate component: a Go test harness in `tests/redteam/` that
+fires 25 adversarial attack scenarios (RT001–RT025 — prompt injection, tool
+chaining, RAG poisoning, reverse shell, container escape, egress
+exfiltration, etc.) at a running ADM gateway and checks that the defenses
+hold. It is **not** part of the deployed stack and does not run on the OCI
+instance — you run it from your workstation or CI and point it at whatever
+gateway you want to exercise.
+
+### Target any deployment
+
+The harness reads the gateway URL from the `ADM_GATEWAY_URL` environment
+variable, defaulting to `http://localhost:8080`. Set it to run against a
+remote deployment:
+
+```bash
+# Against the OCI instance
+export ADM_GATEWAY_URL=http://155.248.184.176:8080
+
+# Against a local stack
+export ADM_GATEWAY_URL=http://localhost:8080
+```
+
+### Run it
+
+```bash
+# All red team scenarios (from the repo root)
+make redteam
+# equivalent to: go test -v -tags=redteam ./tests/redteam/...
+
+# A single scenario
+ADM_GATEWAY_URL=http://155.248.184.176:8080 \
+  go test -v -run '^TestRT001_PromptInjection$' ./tests/redteam/...
+
+# Build a standalone runner binary
+make redteam-build   # -> build/redteam-runner
+```
+
+The scenarios also run automatically in CI via
+`.github/workflows/red_team_fuzz.yml` (on every push/PR and weekly), where
+they exercise a locally built gateway rather than a remote one.
+
+### Deploying the red team agent elsewhere
+
+Because it is just a Go test binary plus this repo, "deploying" it somewhere
+else means running it from a host that can reach the target gateway:
+
+1. **Prerequisites on the runner host**: Go 1.25+ and a clone of this repo
+   (`git clone https://github.com/Jest-Test-Team/Agentic-Defense-Matrix-ADM-.git`).
+2. **Point at the target**: `export ADM_GATEWAY_URL=http://<target-host>:8080`.
+3. **Network path**: the target's port 8080 must be reachable from the
+   runner. For the OCI instance that means the `adm-nsg` ingress rule on 8080
+   (open to `0.0.0.0/0` by default) — if you tighten it to your own IP
+   (recommended, see Section 4), run the red team agent from that same IP.
+4. **Run** `make redteam` (or the standalone `build/redteam-runner`) and
+   review the pass/fail output and any `fuzz*.json` / `fuzz*.log` artifacts.
+
+> The model matters here too: the harness sends `"model": "llama3.1:8b"`. If
+> your target runs a smaller model (as the micro instance must — Section 5),
+> some scenarios may respond differently. Adjust the model in
+> `tests/redteam/harness.go` (`ChatRequest.Model`) to match the target.
+
+> **Authorization:** only run the red team agent against ADM deployments you
+> own or are explicitly authorized to test. It sends real attack payloads.
+

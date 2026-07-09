@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,8 +17,12 @@ type TestHarness struct {
 }
 
 func NewTestHarness() *TestHarness {
+	gatewayURL := os.Getenv("ADM_GATEWAY_URL")
+	if gatewayURL == "" {
+		gatewayURL = "http://localhost:8080"
+	}
 	return &TestHarness{
-		GatewayURL: "http://localhost:8080",
+		GatewayURL: gatewayURL,
 		HTTPClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }

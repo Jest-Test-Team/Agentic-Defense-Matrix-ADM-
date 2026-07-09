@@ -72,6 +72,9 @@ OCI.LOCAL.ENV
 OCI-CREDENTIALS/
 scripts/SET-UP-GHA-SECRECTS.SH
 *.0
+
+# Private battle-exercise setup notes (contains steps for handling secret DB URLs)
+docs/battle-setup.local.md
 deploy
 deploy/terraform/.terraform.lock.hcl
 deploy/terraform/

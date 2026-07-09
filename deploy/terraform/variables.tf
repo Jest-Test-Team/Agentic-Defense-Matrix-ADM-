@@ -40,6 +40,26 @@ variable "reuse_discovered_network" {
   default     = true
 }
 
+variable "battle_database_url" {
+  description = "Neon (or any) Postgres connection string for the battle analysis engine. When set, cloud-init launches the red/blue/green overlay on first boot; when empty only the base blue-team stack runs."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "battle_elastic_url" {
+  description = "Optional Elastic-compatible endpoint (e.g. Bonsai) for the analysis engine. Empty = Postgres-only search/aggregation."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "battle_ollama_model" {
+  description = "Tiny Ollama model pulled on the micro instance so the gateway can answer red-team traffic within 1 GB RAM."
+  type        = string
+  default     = "qwen2.5:0.5b"
+}
+
 variable "availability_domain_index" {
   description = "Which availability domain to launch in (0-based). Cycle this on a re-dispatch to work around 'Out of host capacity' in a specific AD. Clamped to the ADs that exist; single-AD regions like ap-tokyo-1 ignore it."
   type        = number

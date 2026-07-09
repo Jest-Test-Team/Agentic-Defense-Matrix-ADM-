@@ -46,6 +46,16 @@ write_files:
       adm soft nofile 65535
       adm hard nofile 65535
 
+  # Battle-exercise config. Populated from Terraform variables; when
+  # battle_database_url is empty the overlay is skipped (base stack only).
+  - path: /opt/adm/battle.env
+    owner: adm:adm
+    permissions: "0600"
+    content: |
+      DATABASE_URL=${battle_database_url}
+      ELASTIC_URL=${battle_elastic_url}
+      ADM_OLLAMA_MODEL=${battle_ollama_model}
+
 runcmd:
   - sysctl --system
   - systemctl enable docker
@@ -56,3 +66,6 @@ runcmd:
   - su - adm -c "git clone https://github.com/Jest-Test-Team/Agentic-Defense-Matrix-ADM-.git /opt/adm/repo"
   - su - adm -c "chmod +x /opt/adm/repo/deploy/scripts/*.sh"
   - su - adm -c "/opt/adm/repo/deploy/scripts/setup.sh"
+  # Launch the red/blue/green battle overlay only when a Neon DATABASE_URL was
+  # provided; otherwise leave the base stack running and skip the exercise.
+  - su - adm -c "grep -Eq '^DATABASE_URL=.+' /opt/adm/battle.env && /opt/adm/repo/deploy/scripts/battle-up.sh >> /opt/adm/logs/battle.log 2>&1 || echo 'battle: no DATABASE_URL, overlay skipped'"

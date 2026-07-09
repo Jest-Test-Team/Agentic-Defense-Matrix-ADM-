@@ -371,6 +371,9 @@ resource "oci_core_instance" "adm_instance" {
     ssh_authorized_keys = var.ssh_public_key
     user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
       docker_compose_version = var.docker_compose_version
+      battle_database_url    = var.battle_database_url
+      battle_elastic_url     = var.battle_elastic_url
+      battle_ollama_model    = var.battle_ollama_model
     }))
   }
 

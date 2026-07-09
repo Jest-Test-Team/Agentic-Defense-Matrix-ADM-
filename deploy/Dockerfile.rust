@@ -27,7 +27,10 @@ RUN apt-get update && apt-get install -y \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r adm && useradd -r -g adm adm
+# The Debian base image already ships an "adm" group, so create it only if
+# missing; then add a service user in it.
+RUN (getent group adm || groupadd -r adm) && \
+    (id -u adm >/dev/null 2>&1 || useradd -r -g adm -s /usr/sbin/nologin adm)
 
 COPY --from=builder /app/daemon_watchdog/target/release/adm-watchdog /usr/local/bin/adm-watchdog
 

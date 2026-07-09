@@ -37,6 +37,11 @@ on:
         required: true
         default: false
         type: boolean
+      replace_instance:
+        description: Force-recreate the instance so it re-runs cloud-init (needed to pick up new setup/battle scripts on the box)
+        required: false
+        default: false
+        type: boolean
       shape:
         description: Instance shape. auto picks A1.Flex when quota allows; micro forces VM.Standard.E2.1.Micro (use when the region is out of A1 host capacity).
         required: true
@@ -213,7 +218,7 @@ jobs:
 
       - name: Terraform plan
         if: github.event_name == 'push' || inputs.action == 'plan' || inputs.action == 'apply'
-        run: terraform plan -out=tfplan
+        run: terraform plan ${{ inputs.replace_instance && '-replace=oci_core_instance.adm_instance' || '' }} -out=tfplan
 
       - name: Terraform destroy plan
         if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
@@ -239,7 +244,7 @@ jobs:
           TF_VAR_force_shape: micro
         run: |
           echo "::warning::Apply failed (likely A1 out of host capacity); retrying with VM.Standard.E2.1.Micro."
-          terraform plan -out=tfplan
+          terraform plan ${{ inputs.replace_instance && '-replace=oci_core_instance.adm_instance' || '' }} -out=tfplan
           terraform apply -auto-approve tfplan
 
       - name: Fail when apply did not succeed

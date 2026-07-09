@@ -9,6 +9,32 @@ on:
     - cron: '0 2 * * 1'  # Weekly on Monday at 2am
 
 jobs:
+  corpus-scale:
+    name: Corpus Scale (RT-10000)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+      - name: Verify corpus expands to 10,000 variants
+        run: go test -v ./pkg/redteam/...
+      - name: Report corpus capacity and technique coverage
+        run: |
+          go run ./cmd/redteam_agent --help >/dev/null 2>&1 || true
+          cat > /tmp/scale.go <<'GO'
+          package main
+          import ( "fmt"; "github.com/adm/pkg/redteam" )
+          func main() {
+            c := redteam.GenerateCorpus(10000, 1337)
+            by := map[string]int{}
+            for _, v := range c { by[v.Technique]++ }
+            fmt.Printf("capacity=%d  requested=10000  produced=%d  techniques=%d\n",
+              redteam.CorpusCapacity(), len(c), len(by))
+          }
+          GO
+          go run /tmp/scale.go
+
   redteam-tests:
     name: Red Team Regression Tests
     runs-on: ubuntu-latest

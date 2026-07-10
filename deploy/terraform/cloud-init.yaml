@@ -103,11 +103,17 @@ write_files:
       usermod -aG docker adm
       docker --version
 
-      # Firewall (OL8 ships firewalld).
-      if systemctl is-active --quiet firewalld; then
-        for p in 8080 8090 11434; do firewall-cmd --permanent --add-port=$p/tcp; done
-        firewall-cmd --reload
-      fi
+      # Disable host firewalld: OCI's NSG (adm-nsg) already restricts ingress to
+      # the ADM ports at the network layer, and firewalld's dbus can hang with
+      # NoReply on this minimal image and stall provisioning indefinitely.
+      systemctl disable --now firewalld >/dev/null 2>&1 || true
+
+      # 'adm' is a reserved OL8 system account (uid 3, /sbin/nologin), so the
+      # cloud-init users: block can't make it a usable login. Force a bash shell,
+      # a real home, and docker-group membership so `su - adm` works.
+      usermod -s /bin/bash -d /home/adm adm
+      mkdir -p /home/adm && chown adm:adm /home/adm
+      usermod -aG docker adm
 
       # Clone, set up, and launch.
       chown -R adm:adm /opt/adm

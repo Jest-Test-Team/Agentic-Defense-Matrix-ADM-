@@ -6,15 +6,12 @@
 //   ?api=https://host   -> analysis base URL   (also persisted to localStorage)
 //   ?gw=https://host     -> gateway base URL
 
-// Default endpoints. The bare OCI API is HTTP, so on the HTTPS Pages site the
-// browser blocks these (mixed content) and the dashboard shows a banner. Once
-// the API is behind HTTPS (a domain + Caddy TLS on the box — see
-// docs/battle-orchestration.md), point the dashboard at it with
-//   ?api=https://api.your-domain&gw=https://api.your-domain
-// (the same host serves both; Caddy routes /v1/* to the gateway) or via the
-// Endpoint box (persisted to localStorage).
-const DEFAULT_ANALYSIS = "http://161.33.209.244:8090";
-const DEFAULT_GATEWAY = "http://161.33.209.244:8080";
+// Default endpoints: the box's APIs fronted by Caddy auto-HTTPS at a real
+// domain, so the HTTPS Pages site can reach them (no mixed content). The same
+// host serves both — Caddy routes /v1/* to the gateway, everything else to the
+// analysis API. Override at runtime with ?api=…&gw=… or the Endpoint box.
+const DEFAULT_ANALYSIS = "https://api.dennisleehappy.org";
+const DEFAULT_GATEWAY = "https://api.dennisleehappy.org";
 
 export interface ApiConfig {
   analysis: string;

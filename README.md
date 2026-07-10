@@ -35,68 +35,68 @@ works.
 flowchart TB
     viewer(["👤 Viewer"])
 
-    subgraph edge["🌐 Cloudflare · GitHub Pages"]
-        pages["📊 Dashboard<br/>static Next.js · HTTPS"]
-        dns["Cloudflare DNS<br/>api.example.org"]
+    subgraph gh["🐙 GitHub"]
+        pages["📊 Dashboard · GitHub Pages<br/>static Next.js · HTTPS"]
+        gha["⚙️ GitHub Actions"]
+        ghcr[("📦 GHCR<br/>prebuilt images")]
     end
+    subgraph cf["🟠 Cloudflare"]
+        dns["DNS · api.example.org<br/>(DNS-only)"]
+    end
+
     viewer --> pages
     pages -->|"/api/* + SSE · HTTPS"| dns
 
     subgraph box["🖥️ OCI Always-Free Micro · Oracle Linux 8 · Docker"]
-        caddy["Caddy<br/>auto-HTTPS :80/:443"]
-        rt["🔴 Red team<br/>continuous attacker"]
-        gr["🟢 Green team<br/>remediation"]
-        an["📊 Analysis Engine<br/>Rust · :8090"]
-        redis[("Redis 7<br/>sessions · streams")]
+        caddy["🔒 Caddy · auto-HTTPS :80/443"]
+        rt["🔴 Red team · attacker"]
+        gr["🟢 Green team · remediation"]
+        an["📊 Analysis Engine · Rust :8090"]
+        redis[("Redis 7 · sessions/streams")]
         subgraph blue["🔵 Blue team / target"]
-            gw["API Gateway<br/>Go/Echo · :8080"]
-            siem["SIEM Engine<br/>Go · :9091"]
-            opa["Policy Engine<br/>OPA · :8181"]
+            gw["API Gateway · Go :8080"]
+            siem["SIEM Engine · Go :9091"]
+            opa["Policy Engine · OPA :8181"]
         end
-        subgraph agents["Agent services · Go + gRPC"]
+        subgraph agents["Agents · Go + gRPC"]
             pl["Planner"]
             ex["Executor"]
             su["Summarizer"]
         end
     end
 
+    subgraph managed["☁️ Managed services · free tiers"]
+        groq["🧠 Groq · hosted LLM<br/>OpenAI-compatible"]
+        neon[("🐘 Neon Postgres<br/>durable battle log")]
+        bonsai[("🔎 Bonsai Elasticsearch<br/>search · aggregation")]
+    end
+
     dns --> caddy
     caddy -->|/v1/*| gw
     caddy -->|else| an
     rt -->|attacks| gw
-    gw --> opa
-    gw --> siem
-    gw --> pl & ex & su
+    gw --> opa & siem & agents
     gr -->|revoke · restart| gw
     rt & gw & gr -->|battle events| an
-    gw --> redis
-    siem --> redis
-
-    subgraph managed["☁️ Managed services · free tiers"]
-        neon[("Neon Postgres<br/>durable battle log")]
-        bonsai[("Bonsai Elasticsearch<br/>search · aggregation")]
-        groq["Groq<br/>hosted LLM · OpenAI-compatible"]
-    end
+    gw & siem --> redis
+    gw & agents -->|inference| groq
     an -->|durable write| neon
     an -->|index| bonsai
-    gw & pl & su -->|inference| groq
 
-    subgraph cicd["⚙️ CI/CD & IaC"]
-        gha["GitHub Actions"]
-        ghcr[("GHCR<br/>prebuilt images")]
-        tf["Terraform"]
-    end
-    gha --> ghcr -->|docker pull| box
-    gha --> tf -->|apply| box
+    gha --> ghcr & tf["Terraform"]
     gha -->|build & publish| pages
+    ghcr -->|docker pull| box
+    tf -->|apply| box
 
     classDef red fill:#e66767,stroke:#b23,color:#fff
     classDef blue fill:#3987e5,stroke:#245,color:#fff
     classDef green fill:#199e70,stroke:#064,color:#fff
+    classDef llm fill:#eb6834,stroke:#a42,color:#fff
     classDef data fill:#4a3aa7,stroke:#312,color:#fff
     class rt red
     class gw,siem,opa blue
     class gr green
+    class groq llm
     class neon,bonsai,redis data
 ```
 

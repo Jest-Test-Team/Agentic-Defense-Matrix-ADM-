@@ -7,6 +7,26 @@
 
 ---
 
+## 🔴🔵🟢 Live Demo
+
+A full red vs. blue vs. green exercise runs continuously on free-tier cloud:
+
+- **Dashboard (realtime):** https://jest-test-team.github.io/Agentic-Defense-Matrix-ADM/
+  — service health, battle scoreboard, per-technique breakdown, live event feed
+  (English / 繁體中文).
+- **API (HTTPS):** `https://api.dennisleehappy.org` — `/api/stats`, `/api/timeline`,
+  `/api/stream` (SSE), `/health`, `/ready`.
+
+The red team fires thousands of adversarial prompts and tool-call attempts at the
+gateway; the blue team blocks them at the boundary; the green team remediates any
+that land. Every event is logged to Postgres and scored live. See
+**[Live Deployment — Infrastructure & Services](docs/architecture/live-deployment.md)**
+for the full architecture (OCI micro + Neon + Bonsai + Groq + Caddy + GitHub Pages),
+and **[Battle Orchestration](docs/battle-orchestration.md)** for how the exercise
+works.
+
+---
+
 ## Objective
 
 Build a defense matrix covering L7 API Gateway to OS Endpoint layers. Ensure that when agents face **Indirect Prompt Injection (Data Poisoning)**, **Confused Deputy Attacks**, or **State Drift**, the system actively identifies semantic anomalies and blocks unauthorized syscalls and data exfiltration at the OS level.
@@ -106,6 +126,9 @@ agentic-defense-matrix/
 │       ├── 003-separate-agent-services.md
 │       ├── 004-rust-watchdog.md
 │       └── 005-ollama-llm.md
+├── analysis/                      # Rust battle-analysis engine (axum + Postgres + Elastic) + dashboard API
+├── dashboard/                     # Realtime Next.js dashboard (static, GitHub Pages, EN/繁中)
+├── worker/                        # (deprecated) Cloudflare Worker HTTPS proxy — superseded by Caddy
 ├── tests/
 │   ├── integration/               # Blue/green team integration tests
 │   └── redteam/                   # Red team attack harnesses
@@ -316,6 +339,8 @@ sudo systemctl start adm
 
 ## Documentation
 
+- [Live Deployment — Infrastructure & Services](docs/architecture/live-deployment.md) — the production topology (OCI + Neon + Bonsai + Groq + Caddy + Pages)
+- [Dashboard](dashboard/README.md) — the realtime Next.js console (EN / 繁中)
 - [System Architecture](docs/architecture/system-overview.md) — Mermaid diagrams
 - [C4 Container Model](docs/architecture/c4-container.puml) — PlantUML
 - [Deployment Architecture](docs/architecture/deployment.md) — Service matrix

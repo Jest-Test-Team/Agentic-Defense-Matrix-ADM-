@@ -52,9 +52,15 @@ echo "[battle] pulling prebuilt images from GHCR..."
 
 # Essential services only. On the 1 GB micro the observability/update/endpoint
 # extras (otel-collector, control-plane, watchdog) are dropped to fit memory;
-# set ADM_BATTLE_FULL=true to run everything.
-BASE_SVCS=(redis ollama gateway siem policy planner executor summarizer)
+# set ADM_BATTLE_FULL=true to run everything. Ollama is only started when the
+# LLM mode is not "openai" (i.e. we're NOT using a hosted API like Groq) — on the
+# micro, hosted-LLM mode is what makes the stack fit at all.
+LLM_MODE="${ADM_LLM_MODE:-ollama}"
+BASE_SVCS=(redis gateway siem policy planner executor summarizer)
 OVERLAY_SVCS=(analysis redteam greenteam)
+if [[ "$LLM_MODE" != "openai" ]]; then
+  BASE_SVCS=(redis ollama gateway siem policy planner executor summarizer)
+fi
 if [[ "${ADM_BATTLE_FULL:-false}" == "true" ]]; then
   BASE_SVCS+=(otel-collector control-plane watchdog)
 fi
@@ -62,15 +68,18 @@ fi
 echo "[battle] bringing up base blue-team stack (${BASE_SVCS[*]})..."
 "${BATTLE[@]}" up -d --no-build "${BASE_SVCS[@]}"
 
-echo "[battle] waiting for ollama to accept commands..."
-for _ in $(seq 1 60); do
-  if docker exec adm-ollama ollama list >/dev/null 2>&1; then break; fi
-  sleep 3
-done
-
-echo "[battle] pulling tiny model '$MODEL' (fits the 1 GB micro)..."
-docker exec adm-ollama ollama pull "$MODEL" || \
-  echo "[battle] WARNING: model pull failed; the gateway may not answer chat attacks"
+if [[ "$LLM_MODE" != "openai" ]]; then
+  echo "[battle] waiting for ollama to accept commands..."
+  for _ in $(seq 1 60); do
+    if docker exec adm-ollama ollama list >/dev/null 2>&1; then break; fi
+    sleep 3
+  done
+  echo "[battle] pulling tiny model '$MODEL'..."
+  docker exec adm-ollama ollama pull "$MODEL" || \
+    echo "[battle] WARNING: model pull failed; the gateway may not answer chat attacks"
+else
+  echo "[battle] hosted LLM mode ($LLM_MODE); skipping on-box Ollama."
+fi
 
 echo "[battle] launching battle overlay (${OVERLAY_SVCS[*]})..."
 "${BATTLE[@]}" up -d --no-build "${OVERLAY_SVCS[@]}"

@@ -22,18 +22,18 @@ type PlannerAgent struct {
 }
 
 type PlanRequest struct {
-	SessionID      string                `json:"session_id"`
-	UserPrompt     string                `json:"user_prompt"`
-	Context        []ollama.ChatMessage  `json:"context"`
-	AvailableTools []ollama.OpenAITool   `json:"available_tools"`
-	Model          string                `json:"model"`
+	SessionID      string               `json:"session_id"`
+	UserPrompt     string               `json:"user_prompt"`
+	Context        []ollama.ChatMessage `json:"context"`
+	AvailableTools []ollama.OpenAITool  `json:"available_tools"`
+	Model          string               `json:"model"`
 }
 
 type PlanResponse struct {
-	PlanID     string         `json:"plan_id"`
-	Steps      []PlannedStep  `json:"steps"`
-	Reasoning  string         `json:"reasoning"`
-	Confidence float64        `json:"confidence"`
+	PlanID     string        `json:"plan_id"`
+	Steps      []PlannedStep `json:"steps"`
+	Reasoning  string        `json:"reasoning"`
+	Confidence float64       `json:"confidence"`
 }
 
 type PlannedStep struct {
@@ -47,9 +47,7 @@ type PlannedStep struct {
 func NewPlannerAgent() (*PlannerAgent, error) {
 	logger, _ := zap.NewProduction()
 
-	ollamaClient := ollama.NewClient(
-		ollama.WithBaseURL(os.Getenv("ADM_OLLAMA_URL")),
-	)
+	ollamaClient := ollama.NewClientFromEnv()
 
 	agent := &PlannerAgent{
 		echo:         echo.New(),
@@ -92,7 +90,7 @@ Be concise and only use necessary tools.`
 
 	messages := []ollama.ChatMessage{
 		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: fmt.Sprintf("User request: %s\n\nAvailable tools: %s", 
+		{Role: "user", Content: fmt.Sprintf("User request: %s\n\nAvailable tools: %s",
 			req.UserPrompt, a.formatTools(req.AvailableTools))},
 	}
 

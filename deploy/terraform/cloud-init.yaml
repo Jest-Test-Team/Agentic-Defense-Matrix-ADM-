@@ -59,6 +59,15 @@ write_files:
       DATABASE_URL=${battle_database_url}
       ELASTIC_URL=${battle_elastic_url}
       ADM_OLLAMA_MODEL=${battle_ollama_model}
+      # LLM backend. When a Groq key is provided, battle_llm_mode is "openai" and
+      # the on-box Ollama container is skipped so the stack fits the 1 GB micro.
+      ADM_LLM_MODE=${battle_llm_mode}
+      ADM_LLM_BASE_URL=https://api.groq.com/openai/v1
+      ADM_LLM_API_KEY=${groq_api_key}
+      ADM_MODEL=${battle_model}
+      # Throttle the red team to stay within Groq's free rate limit (~30 req/min).
+      ADM_ATTACK_INTERVAL_MS=2500
+      ADM_ATTACK_CONCURRENCY=1
 
 runcmd:
   # --- Swap: the 1 GB micro OOM-kills Go/Rust image builds without it. ---

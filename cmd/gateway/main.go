@@ -21,17 +21,17 @@ import (
 )
 
 type Gateway struct {
-	echo           *echo.Echo
-	ollamaClient   *ollama.Client
-	registry       *ollama.Registry
-	adapter        *ollama.SchemaAdapter
-	analyzer       *semantic.Analyzer
-	policyEngine   *policy.Engine
-	tokenManager   *auth.Manager
-	siemClient     *SIEMClient
-	autoUpdate     *autoupdate.Client
-	logger         *zap.Logger
-	sessions       map[string]*Session
+	echo         *echo.Echo
+	ollamaClient *ollama.Client
+	registry     *ollama.Registry
+	adapter      *ollama.SchemaAdapter
+	analyzer     *semantic.Analyzer
+	policyEngine *policy.Engine
+	tokenManager *auth.Manager
+	siemClient   *SIEMClient
+	autoUpdate   *autoupdate.Client
+	logger       *zap.Logger
+	sessions     map[string]*Session
 }
 
 type Session struct {
@@ -43,25 +43,25 @@ type Session struct {
 }
 
 type ChatRequest struct {
-	Model      string                   `json:"model"`
-	Messages   []ollama.ChatMessage     `json:"messages"`
-	Tools      []ollama.OpenAITool      `json:"tools,omitempty"`
-	Stream     bool                     `json:"stream"`
-	Temperature float64                 `json:"temperature,omitempty"`
-	MaxTokens  int                      `json:"max_tokens,omitempty"`
+	Model       string               `json:"model"`
+	Messages    []ollama.ChatMessage `json:"messages"`
+	Tools       []ollama.OpenAITool  `json:"tools,omitempty"`
+	Stream      bool                 `json:"stream"`
+	Temperature float64              `json:"temperature,omitempty"`
+	MaxTokens   int                  `json:"max_tokens,omitempty"`
 }
 
 type ChatResponse struct {
-	ID      string                   `json:"id"`
-	Model   string                   `json:"model"`
-	Choices []Choice                 `json:"choices"`
-	Usage   Usage                    `json:"usage"`
+	ID      string   `json:"id"`
+	Model   string   `json:"model"`
+	Choices []Choice `json:"choices"`
+	Usage   Usage    `json:"usage"`
 }
 
 type Choice struct {
-	Index        int                   `json:"index"`
-	Message      ollama.ChatMessage    `json:"message"`
-	FinishReason string                `json:"finish_reason"`
+	Index        int                `json:"index"`
+	Message      ollama.ChatMessage `json:"message"`
+	FinishReason string             `json:"finish_reason"`
 }
 
 type Usage struct {
@@ -84,7 +84,7 @@ func NewSIEMClient() *SIEMClient {
 
 func (s *SIEMClient) IngestEvent(event interface{}) error {
 	data, _ := json.Marshal(event)
-	resp, err := http.Post(s.baseURL+"/api/v1/events", "application/json", 
+	resp, err := http.Post(s.baseURL+"/api/v1/events", "application/json",
 		io.NopCloser(nil))
 	if err != nil {
 		return err
@@ -97,9 +97,7 @@ func (s *SIEMClient) IngestEvent(event interface{}) error {
 func NewGateway() (*Gateway, error) {
 	logger, _ := zap.NewProduction()
 
-	ollamaClient := ollama.NewClient(
-		ollama.WithBaseURL(os.Getenv("ADM_OLLAMA_URL")),
-	)
+	ollamaClient := ollama.NewClientFromEnv()
 	registry := ollama.NewRegistry()
 	adapter := ollama.NewSchemaAdapter()
 	analyzer := semantic.NewAnalyzer(0.7)
@@ -186,7 +184,7 @@ func (gw *Gateway) healthHandler(c echo.Context) error {
 
 func (gw *Gateway) versionHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"version": gw.autoUpdate.CurrentVersion(),
+		"version":          gw.autoUpdate.CurrentVersion(),
 		"update_available": false,
 	})
 }
@@ -201,10 +199,10 @@ func (gw *Gateway) checkUpdateHandler(c echo.Context) error {
 
 	updateAvailable := latest.Version != gw.autoUpdate.CurrentVersion()
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"current_version": gw.autoUpdate.CurrentVersion(),
-		"latest_version":  latest.Version,
+		"current_version":  gw.autoUpdate.CurrentVersion(),
+		"latest_version":   latest.Version,
 		"update_available": updateAvailable,
-		"changelog":       latest.Changelog,
+		"changelog":        latest.Changelog,
 	})
 }
 
@@ -237,7 +235,7 @@ func (gw *Gateway) chatCompletion(c echo.Context) error {
 			zap.Float64("score", result.Score),
 		)
 		return c.JSON(http.StatusForbidden, map[string]interface{}{
-			"error": "request blocked",
+			"error":  "request blocked",
 			"reason": result.Reasons,
 		})
 	}
@@ -338,7 +336,7 @@ func (gw *Gateway) executeTool(c echo.Context) error {
 
 	if !result.Allowed {
 		return c.JSON(http.StatusForbidden, map[string]interface{}{
-			"error":  "tool not allowed",
+			"error":   "tool not allowed",
 			"reasons": result.Reasons,
 		})
 	}
@@ -380,9 +378,9 @@ func (gw *Gateway) listSessions(c echo.Context) error {
 
 func (gw *Gateway) getMetrics(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"active_sessions":  len(gw.sessions),
-		"semantic_stats":   gw.analyzer.GetStats(),
-		"token_count":      gw.tokenManager.ActiveCount(),
+		"active_sessions": len(gw.sessions),
+		"semantic_stats":  gw.analyzer.GetStats(),
+		"token_count":     gw.tokenManager.ActiveCount(),
 	})
 }
 

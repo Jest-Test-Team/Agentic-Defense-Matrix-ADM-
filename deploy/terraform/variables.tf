@@ -60,6 +60,19 @@ variable "battle_ollama_model" {
   default     = "qwen2.5:0.5b"
 }
 
+variable "groq_api_key" {
+  description = "Groq (OpenAI-compatible) API key. When set, the gateway/agents use a hosted LLM and the on-box Ollama container is dropped so the stack fits the 1 GB micro."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "battle_model" {
+  description = "Model name for the hosted LLM (Groq) when groq_api_key is set."
+  type        = string
+  default     = "llama-3.1-8b-instant"
+}
+
 variable "availability_domain_index" {
   description = "Which availability domain to launch in (0-based). Cycle this on a re-dispatch to work around 'Out of host capacity' in a specific AD. Clamped to the ADs that exist; single-AD regions like ap-tokyo-1 ignore it."
   type        = number

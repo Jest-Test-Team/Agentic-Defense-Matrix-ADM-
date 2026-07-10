@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -16,17 +18,22 @@ const (
 	defaultMaxRetries = 3
 )
 
-// Client is a thin HTTP wrapper for the Ollama API.
+// Client is a thin HTTP wrapper for the LLM backend. It speaks Ollama's native
+// /api/chat protocol by default, or an OpenAI-compatible API (e.g. Groq) when
+// openAI is set — in which case requests carry a Bearer token and hit
+// /chat/completions.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	maxRetries int
+	apiKey     string
+	openAI     bool
 }
 
 // Option configures the client.
 type Option func(*Client)
 
-// WithBaseURL sets the Ollama server URL.
+// WithBaseURL sets the LLM server URL.
 func WithBaseURL(url string) Option {
 	return func(c *Client) { c.baseURL = url }
 }
@@ -41,7 +48,17 @@ func WithMaxRetries(n int) Option {
 	return func(c *Client) { c.maxRetries = n }
 }
 
-// NewClient creates a new Ollama client.
+// WithAPIKey sets a bearer token sent on every request (for hosted APIs).
+func WithAPIKey(key string) Option {
+	return func(c *Client) { c.apiKey = key }
+}
+
+// WithOpenAICompat switches the client to the OpenAI-compatible API shape.
+func WithOpenAICompat(v bool) Option {
+	return func(c *Client) { c.openAI = v }
+}
+
+// NewClient creates a new LLM client.
 func NewClient(opts ...Option) *Client {
 	c := &Client{
 		baseURL:    defaultBaseURL,
@@ -52,6 +69,28 @@ func NewClient(opts ...Option) *Client {
 		opt(c)
 	}
 	return c
+}
+
+// NewClientFromEnv builds a client from environment configuration, the single
+// construction point used by the gateway and agents:
+//
+//	ADM_LLM_MODE     "ollama" (default) or "openai"
+//	ADM_LLM_BASE_URL base URL; falls back to ADM_OLLAMA_URL, then the Ollama default
+//	ADM_LLM_API_KEY  bearer token for openai mode (e.g. a Groq key)
+func NewClientFromEnv() *Client {
+	mode := strings.ToLower(os.Getenv("ADM_LLM_MODE"))
+	baseURL := os.Getenv("ADM_LLM_BASE_URL")
+	if baseURL == "" {
+		baseURL = os.Getenv("ADM_OLLAMA_URL")
+	}
+	opts := []Option{}
+	if baseURL != "" {
+		opts = append(opts, WithBaseURL(baseURL))
+	}
+	if mode == "openai" {
+		opts = append(opts, WithOpenAICompat(true), WithAPIKey(os.Getenv("ADM_LLM_API_KEY")))
+	}
+	return NewClient(opts...)
 }
 
 // ChatRequest represents the Ollama /api/chat request body.
@@ -104,19 +143,23 @@ type ModelOptions struct {
 
 // ChatResponse is the Ollama /api/chat response.
 type ChatResponse struct {
-	Model              string        `json:"model"`
-	Message            ChatMessage   `json:"message"`
-	Done               bool          `json:"done"`
-	TotalDuration      int64         `json:"total_duration"`
-	LoadDuration       int64         `json:"load_duration"`
-	PromptEvalCount    int           `json:"prompt_eval_count"`
-	EvalCount          int           `json:"eval_count"`
-	EvalDuration       int64         `json:"eval_duration"`
+	Model           string      `json:"model"`
+	Message         ChatMessage `json:"message"`
+	Done            bool        `json:"done"`
+	TotalDuration   int64       `json:"total_duration"`
+	LoadDuration    int64       `json:"load_duration"`
+	PromptEvalCount int         `json:"prompt_eval_count"`
+	EvalCount       int         `json:"eval_count"`
+	EvalDuration    int64       `json:"eval_duration"`
 }
 
 // Chat sends a chat request and returns the full response.
 func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	req.Stream = false
+
+	if c.openAI {
+		return c.chatOpenAI(ctx, req)
+	}
 
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -139,6 +182,92 @@ func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, erro
 		}
 		resp.Body.Close()
 		return &chatResp, nil
+	}
+
+	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
+}
+
+// openAIChatRequest is the OpenAI /chat/completions request body. Inference
+// params live at the top level (unlike Ollama's nested "options").
+type openAIChatRequest struct {
+	Model       string        `json:"model"`
+	Messages    []ChatMessage `json:"messages"`
+	Stream      bool          `json:"stream"`
+	Tools       []Tool        `json:"tools,omitempty"`
+	Temperature float64       `json:"temperature,omitempty"`
+	TopP        float64       `json:"top_p,omitempty"`
+	MaxTokens   int           `json:"max_tokens,omitempty"`
+}
+
+// openAIChatResponse is the OpenAI /chat/completions response body.
+type openAIChatResponse struct {
+	Model   string `json:"model"`
+	Choices []struct {
+		Message struct {
+			Role      string           `json:"role"`
+			Content   string           `json:"content"`
+			ToolCalls []OpenAIToolCall `json:"tool_calls,omitempty"`
+		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+	Usage struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+	} `json:"usage"`
+}
+
+// chatOpenAI performs a non-streaming chat against an OpenAI-compatible API and
+// maps the response back into the shared *ChatResponse so callers are unchanged.
+func (c *Client) chatOpenAI(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	oreq := openAIChatRequest{
+		Model:    req.Model,
+		Messages: req.Messages,
+		Stream:   false,
+		Tools:    req.Tools,
+	}
+	if req.Options != nil {
+		oreq.Temperature = req.Options.Temperature
+		oreq.TopP = req.Options.TopP
+		oreq.MaxTokens = req.Options.NumPredict
+	}
+
+	body, err := json.Marshal(oreq)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	var lastErr error
+	for i := 0; i <= c.maxRetries; i++ {
+		resp, err := c.doRequest(ctx, "/chat/completions", body)
+		if err != nil {
+			lastErr = err
+			time.Sleep(time.Duration(i+1) * 500 * time.Millisecond)
+			continue
+		}
+
+		var oresp openAIChatResponse
+		if err := json.NewDecoder(resp.Body).Decode(&oresp); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decode response: %w", err)
+		}
+		resp.Body.Close()
+
+		out := &ChatResponse{
+			Model:           oresp.Model,
+			Done:            true,
+			PromptEvalCount: oresp.Usage.PromptTokens,
+			EvalCount:       oresp.Usage.CompletionTokens,
+		}
+		if len(oresp.Choices) > 0 {
+			m := oresp.Choices[0].Message
+			out.Message = ChatMessage{Role: m.Role, Content: m.Content}
+			for _, tc := range m.ToolCalls {
+				out.Message.ToolCalls = append(out.Message.ToolCalls, ToolCall{
+					Function: FunctionCall{Name: tc.Function.Name, Arguments: tc.Function.Arguments},
+				})
+			}
+		}
+		return out, nil
 	}
 
 	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
@@ -237,11 +366,19 @@ func (c *Client) IsModelAvailable(ctx context.Context, modelName string) (bool, 
 	return false, nil
 }
 
-// HealthCheck verifies the Ollama server is reachable.
+// HealthCheck verifies the LLM backend is reachable. Ollama exposes /api/tags;
+// OpenAI-compatible backends (Groq) expose /models.
 func (c *Client) HealthCheck(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/tags", nil)
+	path := "/api/tags"
+	if c.openAI {
+		path = "/models"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return err
+	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -251,7 +388,7 @@ func (c *Client) HealthCheck(ctx context.Context) error {
 	resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("ollama returned status %d", resp.StatusCode)
+		return fmt.Errorf("llm returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -262,6 +399,9 @@ func (c *Client) doRequest(ctx context.Context, path string, body []byte) (*http
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -269,8 +409,9 @@ func (c *Client) doRequest(ctx context.Context, path string, body []byte) (*http
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<12))
 		resp.Body.Close()
-		return nil, fmt.Errorf("ollama %s returned status %d", path, resp.StatusCode)
+		return nil, fmt.Errorf("llm %s returned status %d: %s", path, resp.StatusCode, strings.TrimSpace(string(msg)))
 	}
 
 	return resp, nil

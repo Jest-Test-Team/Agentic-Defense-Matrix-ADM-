@@ -20,10 +20,10 @@ type SummarizerAgent struct {
 }
 
 type SummaryRequest struct {
-	SessionID     string                `json:"session_id"`
-	Conversation  []ollama.ChatMessage  `json:"conversation"`
-	ToolResults   []ToolResult          `json:"tool_results"`
-	MaxLength     int                   `json:"max_length"`
+	SessionID    string               `json:"session_id"`
+	Conversation []ollama.ChatMessage `json:"conversation"`
+	ToolResults  []ToolResult         `json:"tool_results"`
+	MaxLength    int                  `json:"max_length"`
 }
 
 type ToolResult struct {
@@ -42,9 +42,7 @@ type SummaryResponse struct {
 func NewSummarizerAgent() (*SummarizerAgent, error) {
 	logger, _ := zap.NewProduction()
 
-	ollamaClient := ollama.NewClient(
-		ollama.WithBaseURL(os.Getenv("ADM_OLLAMA_URL")),
-	)
+	ollamaClient := ollama.NewClientFromEnv()
 
 	agent := &SummarizerAgent{
 		echo:         echo.New(),

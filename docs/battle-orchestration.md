@@ -37,7 +37,7 @@ offloaded to free-forever managed clouds so nothing large runs on the tiny VM:
 | Blue stack + red + green + analysis binaries | OCI Always Free VM (`VM.Standard.E2.1.Micro`, 1 GB) | free forever |
 | **Postgres** (durable battle log) | **Neon** managed Postgres | free forever (0.5 GB) |
 | **Search/aggregation** (optional) | **Bonsai** Elasticsearch sandbox *(or any Elastic-compatible URL)* | free sandbox; **env-gated — degrades to Postgres if unset** |
-| LLM | Ollama on the VM, tiny model (`qwen2.5:0.5b`) | free |
+| LLM | **Groq** hosted (OpenAI-compatible) on the 1 GB micro; or on-box Ollama on A1 | free |
 
 Rationale:
 
@@ -59,6 +59,23 @@ Rationale:
 | `DATABASE_URL` | Neon Postgres connection string | `postgres://user:pw@ep-x.neon.tech/adm?sslmode=require` |
 | `ELASTIC_URL` | *(optional)* Elastic-compatible endpoint | `https://user:pw@xxx.bonsaisearch.net` |
 | `ADM_GATEWAY_URL` | target gateway | `http://gateway:8080` (in-compose) |
+
+### LLM backend (Ollama vs hosted Groq)
+
+The gateway and agents build their LLM client from `pkg/ollama.NewClientFromEnv()`,
+controlled by:
+
+| Var | Meaning |
+|-----|---------|
+| `ADM_LLM_MODE` | `ollama` (native `/api/chat`, default) or `openai` (OpenAI-compatible `/chat/completions` + Bearer auth) |
+| `ADM_LLM_BASE_URL` | LLM endpoint (Groq: `https://api.groq.com/openai/v1`; Ollama: `http://ollama:11434`) |
+| `ADM_LLM_API_KEY` | bearer token for `openai` mode (Groq key) |
+| `ADM_MODEL` | model name; becomes the registry default |
+
+On the **1 GB micro** a Groq key forces `openai` mode and the deploy drops the
+on-box Ollama container (it doesn't fit). On an **A1 (12 GB)** box, leave the key
+unset to run fully local Ollama. Only the non-streaming `Chat()` path is used, so
+Groq needs no SSE support.
 
 **A1 upgrade path:** the same stack self-hosts Postgres + OpenSearch on-box once
 you move to an A1 shape (2–4 OCPU / 12–24 GB). Terraform now retries across

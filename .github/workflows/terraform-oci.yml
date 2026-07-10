@@ -77,6 +77,8 @@ env:
   TF_VAR_battle_database_url: ${{ secrets.ADM_BATTLE_DATABASE_URL }}
   TF_VAR_battle_elastic_url: ${{ secrets.ADM_BATTLE_ELASTIC_URL || secrets.ADM_Bonsai_Access }}
   TF_VAR_battle_ollama_model: ${{ vars.ADM_BATTLE_OLLAMA_MODEL || 'qwen2.5:0.5b' }}
+  TF_VAR_groq_api_key: ${{ secrets.GROQ_API_KEY }}
+  TF_VAR_battle_model: ${{ vars.ADM_BATTLE_MODEL || 'llama-3.1-8b-instant' }}
   TF_VAR_ocpus: ${{ vars.ADM_OCPUS || 4 }}
   TF_VAR_memory_in_gbs: ${{ vars.ADM_MEMORY_IN_GBS || 24 }}
   # Default 50 keeps the whole deploy inside the 200 GB Always Free block

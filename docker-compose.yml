@@ -56,7 +56,12 @@ services:
     environment:
       - ADM_PORT=8080
       - ADM_GRPC_PORT=9090
-      - ADM_OLLAMA_URL=http://ollama:11434
+      # LLM backend: Ollama by default; set ADM_LLM_MODE=openai + ADM_LLM_API_KEY
+      # (e.g. Groq) to use a hosted API instead of the on-box Ollama container.
+      - ADM_LLM_MODE=${ADM_LLM_MODE:-ollama}
+      - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-http://ollama:11434}
+      - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
+      - ADM_MODEL=${ADM_MODEL:-llama3.1:8b}
       - ADM_REDIS_URL=redis://redis:6379
       - ADM_SIEM_URL=http://siem:9091
       - ADM_POLICY_URL=http://policy:8181
@@ -67,8 +72,6 @@ services:
       - /var/run/adm:/var/run/adm
     depends_on:
       redis:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/v1/health"]
@@ -145,13 +148,12 @@ services:
       adm.role: agent
     environment:
       - ADM_GRPC_PORT=9081
-      - ADM_OLLAMA_URL=http://ollama:11434
-      - ADM_MODEL=llama3.1:8b
+      - ADM_LLM_MODE=${ADM_LLM_MODE:-ollama}
+      - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-http://ollama:11434}
+      - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
+      - ADM_MODEL=${ADM_MODEL:-llama3.1:8b}
       - ADM_LOG_LEVEL=info
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-    depends_on:
-      ollama:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:9081"]
       interval: 15s
@@ -196,13 +198,12 @@ services:
       adm.role: agent
     environment:
       - ADM_GRPC_PORT=9083
-      - ADM_OLLAMA_URL=http://ollama:11434
-      - ADM_MODEL=llama3.1:8b
+      - ADM_LLM_MODE=${ADM_LLM_MODE:-ollama}
+      - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-http://ollama:11434}
+      - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
+      - ADM_MODEL=${ADM_MODEL:-llama3.1:8b}
       - ADM_LOG_LEVEL=info
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-    depends_on:
-      ollama:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:9083"]
       interval: 15s

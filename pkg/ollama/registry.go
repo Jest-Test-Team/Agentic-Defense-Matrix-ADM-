@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"fmt"
+	"os"
 	"sync"
 )
 
@@ -9,9 +10,9 @@ import (
 type ModelTier int
 
 const (
-	TierSmall ModelTier = iota // 7B range
-	TierMedium                 // 8B-13B
-	TierLarge                  // 30B+
+	TierSmall  ModelTier = iota // 7B range
+	TierMedium                  // 8B-13B
+	TierLarge                   // 30B+
 )
 
 // ModelConfig describes a registered model and its capabilities.
@@ -79,6 +80,24 @@ func NewRegistry() *Registry {
 	})
 
 	r.defaultModel = "llama3.1:8b"
+
+	// Honor ADM_MODEL as the default so the gateway/agents use the configured
+	// model (e.g. a Groq model name) without touching each call site. Register
+	// it first if unknown so Default() never returns nil.
+	if m := os.Getenv("ADM_MODEL"); m != "" {
+		if _, ok := r.models[m]; !ok {
+			r.Register(&ModelConfig{
+				Name:        m,
+				DisplayName: m,
+				Tier:        TierMedium,
+				ToolCalling: true,
+				MaxContext:  128000,
+				DefaultTemp: 0.7,
+			})
+		}
+		r.defaultModel = m
+	}
+
 	return r
 }
 

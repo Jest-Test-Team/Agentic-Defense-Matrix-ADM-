@@ -4,14 +4,10 @@
 # Target image: Oracle Linux 8 (dnf-based) — NOT Ubuntu, so Docker is installed
 # from the docker-ce repo rather than the (nonexistent) docker.io package.
 
-package_update: true
-
-# Only packages that exist in the OL8 base/appstream repos. Docker CE is added
-# via its own repo in runcmd below.
-packages:
-  - git
-  - curl
-  - jq
+# NOTE: no `package_update` and no `packages:` list. On Oracle Linux 8 a full
+# `dnf update` is slow/flaky and `curl` conflicts with the preinstalled
+# `curl-minimal` while `jq` needs EPEL — either aborts cloud-init. All packages
+# are installed defensively in runcmd instead.
 
 users:
   # '- default' preserves the OL8 'opc' user and its metadata ssh key injection
@@ -74,10 +70,16 @@ runcmd:
   - bash -c 'if [ ! -f /swapfile ]; then dd if=/dev/zero of=/swapfile bs=1M count=4096 && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab; fi'
   - sysctl --system
 
-  # --- Docker CE on Oracle Linux 8 (from the docker-ce repo). ---
-  - dnf install -y dnf-utils
+  # --- Base tools on Oracle Linux 8. curl is intentionally NOT installed (it
+  #     conflicts with the preinstalled curl-minimal); jq comes from EPEL. ---
+  - dnf install -y dnf-plugins-core || dnf install -y dnf-utils
+  - dnf install -y git || true
+  - bash -c 'dnf install -y oracle-epel-release-el8 || dnf install -y epel-release || true; dnf install -y jq || true'
+
+  # --- Docker CE on Oracle Linux 8. --allowerasing resolves the containerd.io
+  #     vs preinstalled runc/podman conflict that otherwise aborts the install. ---
   - dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-  - dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - dnf install -y --allowerasing docker-ce docker-ce-cli containerd.io docker-compose-plugin
   - systemctl enable docker
   - systemctl start docker
   - usermod -aG docker adm

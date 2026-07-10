@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "adm-api-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-01",
+  "observability": { "enabled": true },
+  // Targets for the proxy. Override with `wrangler deploy --var` or the dashboard
+  // if the OCI instance IP changes (it changes on each replace_instance deploy).
+  "vars": {
+    "ADM_ANALYSIS_URL": "http://161.33.209.244:8090",
+    "ADM_GATEWAY_URL": "http://161.33.209.244:8080"
+  }
+}

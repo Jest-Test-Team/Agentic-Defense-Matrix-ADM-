@@ -289,6 +289,43 @@ across redeploys. DNS then maps a name → that IP only; it does **not** remove 
 on 443 in front of the dashboard. Recommended order: get it running → reserve a
 static IP → (optional) DNS + reverse proxy.
 
+## 8.6 OCI Always-Free / Oracle Linux 8 deployment gotchas
+
+Getting the stack onto the 1 GB `E2.1.Micro` (Oracle Linux 8) surfaced a stack of
+image/OS-specific issues. All are handled in `deploy/terraform/cloud-init.yaml`
+(now a `write_files` provision script) and the scripts; documented here so they
+aren't rediscovered:
+
+1. **Docker packages** — `docker.io`/`docker-compose-plugin` are Ubuntu names;
+   OL8 installs Docker CE from the docker-ce repo.
+2. **On-box compile OOM** — 1 GB can't build Go/Rust images; they're prebuilt in
+   `images.yml` and pulled from GHCR (packages must be **public**).
+3. **SSH lockout** — a `users:` block without `- default` drops the `opc` user
+   and its key. Keep `- default`.
+4. **Local LLM too big** — Ollama needs ~1 GB; use **Groq hosted LLM**
+   (`ADM_LLM_MODE=openai`) so the stack fits (§ LLM backend).
+5. **OL8 package conflicts** — don't install `curl` (conflicts with
+   `curl-minimal`); `jq` needs EPEL; use `dnf --allowerasing` for docker-ce vs
+   preinstalled `runc`/`podman`.
+6. **Jumbo-frame MTU** — OCI VNICs default to MTU 9000; the internet path is
+   1500, so large TLS downloads stall. Force MTU 1500 (persist on the NM
+   connection) before any dnf.
+7. **YAML `: ` in runcmd** — a colon-space inside a runcmd string makes cloud-init
+   parse the item as a dict and abort the whole module. Put complex shell in a
+   `write_files` script, not inline runcmd.
+8. **firewalld dbus hang** — `firewall-cmd` can hang forever on this image;
+   disable firewalld (OCI NSG handles ingress) and **restart docker afterward**
+   (stopping firewalld flushes the iptables NAT chains docker needs, else
+   `docker network create` fails).
+9. **Reserved `adm` user** — `adm` is an OL8 system account (uid 3,
+   `/sbin/nologin`); `usermod -s /bin/bash -d /home/adm adm` to make it usable.
+10. **`&` in connection strings** — quote every value in `battle.env`; an
+    unquoted `VAR=...&...` backgrounds the assignment when sourced, leaving it
+    unset (Neon URLs contain `&channel_binding=require`).
+11. **Healthcheck binaries** — distroless service images lack
+    `curl`/`wget`/`grpc_health_probe`, so base healthchecks report false
+    "unhealthy"; the battle overlay disables them.
+
 ## 9. Scoring model (how "who's winning" is computed)
 
 Per campaign, from the durable log:

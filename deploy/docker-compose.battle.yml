@@ -77,6 +77,29 @@ services:
       - adm-internal
       - adm-public
 
+  # The base compose healthchecks call curl/wget/grpc_health_probe, none of which
+  # exist in the distroless/minimal service images, so the containers report
+  # "unhealthy" despite working. Disable those healthchecks in the battle
+  # deployment (the services are exercised directly by the red team + dashboard).
+  gateway:
+    healthcheck:
+      disable: true
+  siem:
+    healthcheck:
+      disable: true
+  policy:
+    healthcheck:
+      disable: true
+  planner:
+    healthcheck:
+      disable: true
+  executor:
+    healthcheck:
+      disable: true
+  summarizer:
+    healthcheck:
+      disable: true
+
 networks:
   adm-internal:
     driver: bridge

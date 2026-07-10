@@ -280,6 +280,29 @@ echo "bonsai+score:"; curl -s http://$IP:8090/api/stats | jq '{elastic_enabled, 
 
 On the box itself, container status is `docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml ps` (or `sudo -u adm /opt/adm/repo/deploy/scripts/status.sh`).
 
+### Serving the dashboard's data over HTTPS (Caddy + domain)
+
+The dashboard is hosted on GitHub Pages (HTTPS), so the browser blocks its calls
+to the HTTP API (mixed content). A Cloudflare Worker proxy does **not** work —
+Cloudflare Workers refuse to `fetch()` a raw-IP / nip.io origin (error 1003), so
+the API needs a real domain. The built-in path:
+
+1. Point a domain's **A record** at the instance IP (e.g. `api.example.com` →
+   `161.33.209.244`).
+2. Set the domain: repo variable `ADM_API_DOMAIN=api.example.com` (or
+   `battle_api_domain` in Terraform / the `ADM_API_DOMAIN` line in
+   `/opt/adm/battle.env` on the box).
+3. Redeploy (or on the box: `battle-up.sh`) — `battle-up.sh` then starts the
+   **Caddy** service (`deploy/Caddyfile`), which gets an automatic Let's Encrypt
+   cert and serves the APIs over HTTPS (`/v1/*` → gateway, else → analysis; ports
+   80/443 are open in the NSG).
+4. Open the dashboard pointed at it:
+   `…/Agentic-Defense-Matrix-ADM/?api=https://api.example.com&gw=https://api.example.com`
+   (or paste into the Endpoint box). Live data flows — no mixed content.
+
+Caddy only starts when `ADM_API_DOMAIN` is set (otherwise Let's Encrypt issuance
+would fail with no domain pointing at the box).
+
 ### DNS / static IP
 
 The instance's public IP changes on every recreation, so before any DNS: attach

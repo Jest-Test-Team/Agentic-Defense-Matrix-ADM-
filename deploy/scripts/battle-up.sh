@@ -60,6 +60,12 @@ fi
 if [[ "${ADM_BATTLE_FULL:-false}" == "true" ]]; then
   BASE_SVCS+=(otel-collector control-plane watchdog)
 fi
+# Front the APIs with Caddy (auto-HTTPS) only when a domain is configured — its
+# A record must already point at this box or Let's Encrypt issuance fails.
+if [[ -n "${ADM_API_DOMAIN:-}" ]]; then
+  OVERLAY_SVCS+=(caddy)
+  echo "[battle] ADM_API_DOMAIN=$ADM_API_DOMAIN set; Caddy will serve HTTPS for the APIs."
+fi
 
 # Pull only the images we will actually start — critically this skips the ~3 GB
 # Ollama image in Groq mode, which would otherwise waste time and disk.

@@ -1,0 +1,19 @@
+# Caddy fronts the ADM APIs with automatic Let's Encrypt HTTPS so the GitHub
+# Pages dashboard (HTTPS) can reach them without mixed content. Set the domain
+# via the ADM_API_DOMAIN env var; point that domain's A record at the box first.
+#
+#   /v1/*  -> gateway  (:8080)
+#   else   -> analysis (:8090)
+#
+# The analysis engine and gateway already send permissive CORS, which Caddy
+# passes through — so the cross-origin dashboard calls work.
+
+{$ADM_API_DOMAIN} {
+	@gateway path /v1/*
+	handle @gateway {
+		reverse_proxy gateway:8080
+	}
+	handle {
+		reverse_proxy analysis:8090
+	}
+}

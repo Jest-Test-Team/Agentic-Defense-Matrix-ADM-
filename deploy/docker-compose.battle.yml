@@ -77,6 +77,27 @@ services:
       - adm-internal
       - adm-public
 
+  # Caddy: automatic-HTTPS reverse proxy in front of the APIs, so the HTTPS Pages
+  # dashboard can reach them. Only started by battle-up.sh when ADM_API_DOMAIN is
+  # set (and that domain's A record points at the box), otherwise Let's Encrypt
+  # issuance would fail. Routes /v1/* -> gateway, everything else -> analysis.
+  caddy:
+    image: caddy:2-alpine
+    container_name: adm-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - ADM_API_DOMAIN=${ADM_API_DOMAIN:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    networks:
+      - adm-internal
+      - adm-public
+
   # The base compose healthchecks call curl/wget/grpc_health_probe, none of which
   # exist in the distroless/minimal service images, so the containers report
   # "unhealthy" despite working. Disable those healthchecks in the battle
@@ -99,6 +120,10 @@ services:
   summarizer:
     healthcheck:
       disable: true
+
+volumes:
+  caddy-data:
+  caddy-config:
 
 networks:
   adm-internal:

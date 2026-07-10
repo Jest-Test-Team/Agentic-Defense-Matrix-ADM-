@@ -73,6 +73,12 @@ variable "battle_model" {
   default     = "llama-3.1-8b-instant"
 }
 
+variable "battle_api_domain" {
+  description = "Domain whose A record points at this instance (e.g. api.example.com). When set, Caddy serves the ADM APIs over automatic-HTTPS so the GitHub Pages dashboard can reach them. Empty = no HTTPS front (dashboard live data needs another HTTPS path)."
+  type        = string
+  default     = ""
+}
+
 variable "availability_domain_index" {
   description = "Which availability domain to launch in (0-based). Cycle this on a re-dispatch to work around 'Out of host capacity' in a specific AD. Clamped to the ADs that exist; single-AD regions like ap-tokyo-1 ignore it."
   type        = number

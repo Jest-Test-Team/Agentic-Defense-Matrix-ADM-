@@ -59,6 +59,7 @@ write_files:
       ADM_MODEL='${battle_model}'
       ADM_ATTACK_INTERVAL_MS='2500'
       ADM_ATTACK_CONCURRENCY='1'
+      ADM_API_DOMAIN='${battle_api_domain}'
 
   # Full provisioning script. A block scalar can contain colons, quotes and awk
   # freely, so none of the YAML-in-runcmd escaping hazards apply here.

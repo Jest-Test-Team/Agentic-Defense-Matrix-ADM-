@@ -313,7 +313,7 @@ resource "oci_core_network_security_group" "adm_nsg" {
 }
 
 resource "oci_core_network_security_group_security_rule" "adm_nsg_ingress" {
-  for_each = { ssh = 22, gateway = 8080, ollama = 11434, analysis = 8090 }
+  for_each = { ssh = 22, http = 80, https = 443, gateway = 8080, ollama = 11434, analysis = 8090 }
 
   network_security_group_id = oci_core_network_security_group.adm_nsg.id
   direction                 = "INGRESS"
@@ -380,6 +380,7 @@ resource "oci_core_instance" "adm_instance" {
       battle_llm_mode        = local.battle_llm_mode
       groq_api_key           = var.groq_api_key
       battle_model           = var.battle_model
+      battle_api_domain      = var.battle_api_domain
       ssh_public_key         = var.ssh_public_key
     }))
   }

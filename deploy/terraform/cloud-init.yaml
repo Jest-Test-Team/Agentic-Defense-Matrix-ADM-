@@ -66,7 +66,13 @@ write_files:
       ADM_ATTACK_CONCURRENCY=1
 
 runcmd:
-  # --- Swap: the 1 GB micro OOM-kills Go/Rust image builds without it. ---
+  # --- MTU: OCI VNICs default to jumbo frames (MTU 9000), but the internet path
+  #     is 1500, so large TLS downloads (dnf packages, container images) STALL
+  #     while small requests succeed. Force 1500 first — before any dnf — and
+  #     persist it on the NetworkManager connection so it survives reboots. ---
+  - bash -c 'IFACE=$(ip -o -4 route show to default | awk "{print \$5}" | head -1); ip link set dev "$IFACE" mtu 1500 || true; CON=$(nmcli -t -g GENERAL.CONNECTION device show "$IFACE" 2>/dev/null | head -1); if [ -n "$CON" ]; then nmcli con mod "$CON" 802-3-ethernet.mtu 1500 || true; fi'
+
+  # --- Swap: headroom for image pulls/startup on the 1 GB micro. ---
   - bash -c 'if [ ! -f /swapfile ]; then dd if=/dev/zero of=/swapfile bs=1M count=4096 && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab; fi'
   - sysctl --system
 

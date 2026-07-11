@@ -81,6 +81,8 @@ export default function MatrixPage() {
             <button className={lang === "en" ? "on" : ""} onClick={() => switchLang("en")}>EN</button>
             <button className={lang === "zh-Hant" ? "on" : ""} onClick={() => switchLang("zh-Hant")}>繁中</button>
           </div>
+          <Link className="navlink" href="/search">{t.searchNav}</Link>
+          <a className="navlink ghost" href="https://github.com/Jest-Test-Team/Agentic-Defense-Matrix-ADM" target="_blank" rel="noopener noreferrer">⭐ {t.githubLink}</a>
           <div className="conn">
             <Link href="/">{t.backToConsole}</Link>
           </div>

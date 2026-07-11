@@ -51,6 +51,12 @@ const RED_TEAM_ATTACKS = [
   { id: "RT-030", attack: "Side Channel", technique: "Data exfiltration via encoding" },
 ];
 
+// Map each base technique id (RT-001…RT-030) to its human attack name, so the
+// live feed can show the full name of the variant that just fired.
+const TECH_NAME: Record<string, string> = Object.fromEntries(
+  RED_TEAM_ATTACKS.map((a) => [a.id, a.attack])
+);
+
 type Modal =
   | { kind: "svc"; svc: SystemService }
   | { kind: "sessions"; title: string; rows: SessionRow[] }
@@ -165,6 +171,9 @@ export default function Page() {
             <button className={lang === "en" ? "on" : ""} onClick={() => switchLang("en")}>EN</button>
             <button className={lang === "zh-Hant" ? "on" : ""} onClick={() => switchLang("zh-Hant")}>繁中</button>
           </div>
+          <a className="navlink" href="search/">{t.searchNav}</a>
+          <a className="navlink" href="matrix/">{t.matrixViewAll}</a>
+          <a className="navlink ghost" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">⭐ {t.githubLink}</a>
           <div className="conn">
             <span className={`dot ${connected === true ? "live" : connected === false ? "down" : ""}`} />
             {connected === true ? t.live : connected === false ? t.unreachable : t.connecting}
@@ -436,11 +445,19 @@ function TechRow({ name, blocked, landed }: { name: string; blocked: number; lan
 function EventRow({ ev }: { ev: BattleEvent }) {
   const team = (ev.team || "?").toLowerCase();
   const tag = team === "red" ? "red" : team === "green" ? "green" : "blue";
+  // Full variant name: enumerated id (RT-00001) + the base technique's name
+  // (e.g. "Reverse Shell") + the mutation applied to this variant.
+  const name = ev.technique ? TECH_NAME[ev.technique] ?? "" : "";
+  const variant = ev.variant || ev.technique || ev.kind || "";
+  const mutation = ev.labels?.mutation;
   return (
-    <div className="feed-row">
+    <div className="feed-row" title={ev.detail || ""}>
       <span className={`tag ${tag}`}>{(ev.team || "?").toUpperCase()}</span>
-      <span className="tech">{ev.technique || ev.kind || ""}</span>
-      <span className="detail">{ev.detail || ""}</span>
+      <span className="tech" style={{ whiteSpace: "nowrap" }}>{variant}</span>
+      <span className="detail">
+        {name || ev.detail || ""}
+        {mutation ? <span className="muted"> · {mutation}</span> : ""}
+      </span>
       <span className={`out ${ev.outcome || ""}`}>{ev.outcome || ""}</span>
     </div>
   );

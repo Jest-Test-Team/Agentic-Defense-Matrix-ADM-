@@ -165,6 +165,7 @@ export default function Page() {
             <button className={lang === "en" ? "on" : ""} onClick={() => switchLang("en")}>EN</button>
             <button className={lang === "zh-Hant" ? "on" : ""} onClick={() => switchLang("zh-Hant")}>繁中</button>
           </div>
+          <a className="navlink" href="search/">{t.searchNav}</a>
           <div className="conn">
             <span className={`dot ${connected === true ? "live" : connected === false ? "down" : ""}`} />
             {connected === true ? t.live : connected === false ? t.unreachable : t.connecting}

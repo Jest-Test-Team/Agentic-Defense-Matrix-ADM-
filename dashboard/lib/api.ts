@@ -109,6 +109,17 @@ export interface BattleEvent {
   labels?: Record<string, string>;
 }
 
+export interface SearchHit {
+  score: number;
+  event: BattleEvent;
+}
+
+export interface SearchResult {
+  total: number;
+  hits: SearchHit[];
+  error?: string;
+}
+
 const TIMEOUT = 6000;
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -140,6 +151,17 @@ export const api = {
   stats: (c: ApiConfig) => getJSON<Stats>(`${c.analysis}/api/stats`),
   system: (c: ApiConfig) => getJSON<{ services: SystemService[] }>(`${c.analysis}/api/system`),
   llm: (c: ApiConfig) => getJSON<LlmStatus>(`${c.analysis}/api/llm`),
+  // Full-text search over the Elasticsearch (Bonsai) `adm-battle-events` index.
+  // Accepts Lucene query_string syntax; returns the raw ES response, which we
+  // normalize into { total, hits[] }.
+  search: async (c: ApiConfig, q: string): Promise<SearchResult> => {
+    const raw = await getJSON<any>(`${c.analysis}/api/search?q=${encodeURIComponent(q || "*")}`);
+    if (raw?.error) return { total: 0, hits: [], error: raw.error };
+    const h = raw?.hits;
+    const total = typeof h?.total === "object" ? h.total.value : h?.total ?? 0;
+    const hits: SearchHit[] = (h?.hits ?? []).map((x: any) => ({ score: x._score ?? 0, event: x._source ?? {} }));
+    return { total, hits };
+  },
   timeline: (c: ApiConfig, limit = 40) =>
     getJSON<{ sessions: SessionRow[] }>(`${c.analysis}/api/timeline?limit=${limit}`),
   analysisReady: (c: ApiConfig) => probe(`${c.analysis}/ready`),

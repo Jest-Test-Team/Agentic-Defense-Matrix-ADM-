@@ -78,6 +78,17 @@ export interface Dict {
   matrixAttack: string;
   matrixTechnique: string;
 
+  searchNav: string;
+  searchTitle: string;
+  searchIntro: string[];
+  searchPlaceholder: string;
+  searchButton: string;
+  searchExamplesLabel: string;
+  searchTotal: (n: number) => string;
+  searchNone: string;
+  searchDisabled: string;
+  backToConsole: string;
+
   endpoint: string;
   analysisUrl: string;
   gatewayUrl: string;
@@ -166,6 +177,20 @@ export const translations: Record<Lang, Dict> = {
     matrixAttack: "Attack",
     matrixTechnique: "Technique",
 
+    searchNav: "🔎 Search events",
+    searchTitle: "Event search (Elasticsearch)",
+    searchIntro: [
+      "Every attack, defense, and remediation is also indexed into an Elasticsearch cluster (a free Bonsai 'Hobby' cluster). The scoreboard on the home page is powered by Postgres and answers fixed questions — counts, rates, MTTR. Elasticsearch answers the open-ended ones: full-text search across every event's payload and metadata, in milliseconds, over the whole history.",
+      "Type a query below (Lucene syntax). It searches the adm-battle-events index and returns the newest matches — the same thing you can run by hand in Bonsai's Console tab.",
+    ],
+    searchPlaceholder: 'e.g. reverse shell   ·   team:red AND outcome:allowed   ·   technique:RT-028',
+    searchButton: "Search",
+    searchExamplesLabel: "Try:",
+    searchTotal: (n: number) => `${n.toLocaleString()} matching events`,
+    searchNone: "No events matched. Try a broader query, or * for everything.",
+    searchDisabled: "Search is unavailable — the analysis engine has no ELASTIC_URL configured.",
+    backToConsole: "← Back to battle console",
+
     endpoint: "Endpoint",
     analysisUrl: "analysis API base URL",
     gatewayUrl: "gateway base URL",
@@ -253,6 +278,20 @@ export const translations: Record<Lang, Dict> = {
     matrixId: "ID",
     matrixAttack: "攻擊",
     matrixTechnique: "技術",
+
+    searchNav: "🔎 搜尋事件",
+    searchTitle: "事件搜尋（Elasticsearch）",
+    searchIntro: [
+      "每一筆攻擊、防禦與修復事件，也會同步索引進一個 Elasticsearch 叢集（免費的 Bonsai「Hobby」方案）。首頁的計分板由 Postgres 驅動，負責回答固定的問題——次數、比率、修復時間；Elasticsearch 則負責回答開放式問題：在毫秒之內，對整段歷史裡每一筆事件的內容與中繼資料進行全文檢索。",
+      "在下方輸入查詢（Lucene 語法），它會搜尋 adm-battle-events 索引並回傳最新的符合結果——這與你在 Bonsai 的 Console 分頁手動執行的查詢是同一件事。",
+    ],
+    searchPlaceholder: '例如 reverse shell　·　team:red AND outcome:allowed　·　technique:RT-028',
+    searchButton: "搜尋",
+    searchExamplesLabel: "試試：",
+    searchTotal: (n: number) => `${n.toLocaleString()} 筆符合的事件`,
+    searchNone: "沒有符合的事件。試試更寬鬆的查詢，或用 * 查看全部。",
+    searchDisabled: "搜尋暫時無法使用——分析引擎未設定 ELASTIC_URL。",
+    backToConsole: "← 返回攻防主控台",
 
     endpoint: "連線端點",
     analysisUrl: "分析 API 網址",

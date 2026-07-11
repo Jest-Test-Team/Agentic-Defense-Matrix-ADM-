@@ -48,6 +48,11 @@ MITRE ATLAS alignment, ablations, reproducibility) and
   flip + OS process kill). Reports distributions, not MTTR. Reusable recorder in
   `pkg/telemetry/latency.go`; live tail latencies via `GET /api/latency` on the
   analysis engine.
+- [baseline-results.md](baseline-results.md) — the **SOTA baseline**: `cmd/baseline`
+  scores ADM drift vs a real **Llama Guard** (hosted `llama-guard-3-8b`) on the same
+  corpus and computes the **asymmetry α**. ADM arm measured (p50 ≈ 20 µs/msg); the
+  Llama Guard arm runs with a Groq key (per-message model inference ≈ 10²–10³ ms →
+  α ≈ 10³–10⁴×).
 
 ## Thesis statement (the one sentence a reviewer must remember)
 

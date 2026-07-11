@@ -71,11 +71,25 @@ controlled by:
 | `ADM_LLM_BASE_URL` | LLM endpoint (Groq: `https://api.groq.com/openai/v1`; Ollama: `http://ollama:11434`) |
 | `ADM_LLM_API_KEY` | bearer token for `openai` mode (Groq key) |
 | `ADM_MODEL` | model name; becomes the registry default |
+| `ADM_LLM_FALLBACK_BASE_URL` | fallback provider endpoint (X.AI: `https://api.x.ai/v1`) |
+| `ADM_LLM_FALLBACK_API_KEY` | fallback bearer token (X.AI `xai-…` key) |
+| `ADM_LLM_FALLBACK_MODEL` | fallback model id (e.g. `grok-2-latest`) |
 
 On the **1 GB micro** a Groq key forces `openai` mode and the deploy drops the
 on-box Ollama container (it doesn't fit). On an **A1 (12 GB)** box, leave the key
 unset to run fully local Ollama. Only the non-streaming `Chat()` path is used, so
 Groq needs no SSE support.
+
+**Automatic failover (Groq → X.AI).** When a fallback key is configured, the
+client (`Chat`/`HealthCheck`) tries Groq first and **transparently fails over to
+X.AI** if Groq errors after its retries (rate-limit, 5xx, network) — so inference
+stays available if Groq runs out of free quota or is down. The fallback substitutes
+its own `ADM_LLM_FALLBACK_MODEL`. The analysis engine exposes per-provider status
+at **`GET /api/llm`** (`{active, providers:[{role,name,status,active}]}`), which the
+dashboard renders as an "LLM backend" panel showing each provider's up/down state
+and which one is currently serving. Terraform wires this via `xai_api_key`/`xai_model`
+(secret `XAI_API_KEY`, var `ADM_XAI_MODEL`); the fallback base URL is set to X.AI
+automatically when the key is present.
 
 **A1 upgrade path:** the same stack self-hosts Postgres + OpenSearch on-box once
 you move to an A1 shape (2–4 OCPU / 12–24 GB). Terraform now retries across

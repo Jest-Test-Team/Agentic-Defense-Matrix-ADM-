@@ -80,6 +80,18 @@ export interface SystemService {
   status: "up" | "down" | "disabled";
 }
 
+export interface LlmProvider {
+  role: "primary" | "fallback";
+  name: string;
+  status: "up" | "down" | "unconfigured";
+  active: boolean;
+}
+
+export interface LlmStatus {
+  active: "primary" | "fallback" | "none";
+  providers: LlmProvider[];
+}
+
 export interface BattleEvent {
   id?: string;
   ts?: string;
@@ -126,6 +138,7 @@ export async function probe(url: string): Promise<boolean> {
 export const api = {
   stats: (c: ApiConfig) => getJSON<Stats>(`${c.analysis}/api/stats`),
   system: (c: ApiConfig) => getJSON<{ services: SystemService[] }>(`${c.analysis}/api/system`),
+  llm: (c: ApiConfig) => getJSON<LlmStatus>(`${c.analysis}/api/llm`),
   timeline: (c: ApiConfig, limit = 40) =>
     getJSON<{ sessions: SessionRow[] }>(`${c.analysis}/api/timeline?limit=${limit}`),
   analysisReady: (c: ApiConfig) => probe(`${c.analysis}/ready`),

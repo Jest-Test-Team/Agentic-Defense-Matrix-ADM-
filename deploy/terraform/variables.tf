@@ -73,6 +73,19 @@ variable "battle_model" {
   default     = "llama-3.1-8b-instant"
 }
 
+variable "xai_api_key" {
+  description = "X.AI (Grok) API key (xai-...). When set, X.AI is used as an automatic fallback the gateway/agents fail over to when Groq is rate-limited or down."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "xai_model" {
+  description = "X.AI model id used for the fallback provider."
+  type        = string
+  default     = "grok-2-latest"
+}
+
 variable "battle_api_domain" {
   description = "Domain whose A record points at this instance (e.g. api.example.com). When set, Caddy serves the ADM APIs over automatic-HTTPS so the GitHub Pages dashboard can reach them. Empty = no HTTPS front (dashboard live data needs another HTTPS path)."
   type        = string

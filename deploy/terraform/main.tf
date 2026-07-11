@@ -35,7 +35,7 @@ locals {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[local.ad_index].name
 
   # A Groq key switches the LLM to hosted (openai) mode, which drops on-box Ollama.
-  battle_llm_mode = var.groq_api_key != "" ? "openai" : "ollama"
+  battle_llm_mode = (var.groq_api_key != "" || var.xai_api_key != "") ? "openai" : "ollama"
 }
 
 # The Always Free A1 allowance varies by tenancy and can be zero. Size the
@@ -380,6 +380,9 @@ resource "oci_core_instance" "adm_instance" {
       battle_llm_mode        = local.battle_llm_mode
       groq_api_key           = var.groq_api_key
       battle_model           = var.battle_model
+      xai_api_key            = var.xai_api_key
+      xai_model              = var.xai_model
+      xai_fallback_base_url  = var.xai_api_key != "" ? "https://api.x.ai/v1" : ""
       battle_api_domain      = var.battle_api_domain
       ssh_public_key         = var.ssh_public_key
     }))

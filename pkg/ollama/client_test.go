@@ -104,6 +104,43 @@ func TestChatOllamaNative(t *testing.T) {
 	}
 }
 
+// TestChatFallback verifies that when the primary provider fails, the request
+// fails over to the fallback provider, and the fallback substitutes its own
+// model id via WithModel.
+func TestChatFallback(t *testing.T) {
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "rate limited", http.StatusTooManyRequests)
+	}))
+	defer primary.Close()
+
+	var fbModel string
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req openAIChatRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		fbModel = req.Model
+		json.NewEncoder(w).Encode(map[string]any{
+			"model":   "grok-2-latest",
+			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "from-grok"}}},
+		})
+	}))
+	defer fallback.Close()
+
+	fb := NewClient(WithBaseURL(fallback.URL), WithOpenAICompat(true), WithAPIKey("xai-k"), WithModel("grok-2-latest"))
+	c := NewClient(WithBaseURL(primary.URL), WithOpenAICompat(true), WithAPIKey("gsk_k"),
+		WithModel("llama-3.1-8b-instant"), WithMaxRetries(0), WithFallback(fb))
+
+	resp, err := c.Chat(context.Background(), ChatRequest{Messages: []ChatMessage{{Role: "user", Content: "hi"}}})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if resp.Message.Content != "from-grok" {
+		t.Errorf("content = %q, want from-grok (fallback response)", resp.Message.Content)
+	}
+	if fbModel != "grok-2-latest" {
+		t.Errorf("fallback model = %q, want grok-2-latest", fbModel)
+	}
+}
+
 // TestRegistryHonorsADMModel verifies ADM_MODEL becomes the default model.
 func TestRegistryHonorsADMModel(t *testing.T) {
 	t.Setenv("ADM_MODEL", "llama-3.1-8b-instant")

@@ -24,9 +24,11 @@ services:
       - DATABASE_URL=${DATABASE_URL:?set DATABASE_URL to your Neon postgres connection string}
       - ELASTIC_URL=${ELASTIC_URL:-}
       - ADM_ANALYSIS_BIND=0.0.0.0:8090
-      # For the /api/system LLM probe (reports the LLM Backend status).
+      # For the /api/system + /api/llm probes (LLM Backend status, per-provider).
       - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-}
       - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
+      - ADM_LLM_FALLBACK_BASE_URL=${ADM_LLM_FALLBACK_BASE_URL:-}
+      - ADM_LLM_FALLBACK_API_KEY=${ADM_LLM_FALLBACK_API_KEY:-}
       - RUST_LOG=info
     restart: unless-stopped
     networks:

@@ -1,0 +1,90 @@
+# Patches the LLM keys onto the *running* OCI box and recreates the LLM-facing
+# services — without a Terraform replace (which would change the instance IP and
+# break the Caddy/Let's-Encrypt cert + DNS). Secrets flow straight from GHA into
+# the box over SSH; they never appear in logs (masked) or leave GitHub.
+#
+# Requires:
+#   secrets.ADM_SSH_PRIVATE_KEY  the private key matching ADM_SSH_PUBLIC_KEY (the
+#                                adm_key you use to ssh opc@<box>)
+#   secrets.GROQ_API_KEY         gsk_... (primary)
+#   secrets.XAI_API_KEY          xai-...  (fallback)
+#   vars.ADM_BOX_HOST            box IP/host (defaults to the known live IP)
+#   vars.ADM_XAI_MODEL           fallback model id (defaults to grok-2-latest)
+name: Apply LLM keys (live box)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    env:
+      BOX_HOST: ${{ vars.ADM_BOX_HOST || '161.33.209.244' }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      XAI_MODEL: ${{ vars.ADM_XAI_MODEL || 'grok-2-latest' }}
+    steps:
+      - name: Start ssh-agent with the box key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ADM_SSH_PRIVATE_KEY }}
+
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$BOX_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Patch battle.env and recreate LLM services
+        run: |
+          # Feed the secrets to the remote root bash on STDIN (as export lines,
+          # %q-quoted) followed by the script — so the values are never in argv /
+          # the process list on the box, and GHA masks them in this log.
+          {
+            printf 'export GROQ_API_KEY=%q\n' "$GROQ_API_KEY"
+            printf 'export XAI_API_KEY=%q\n'  "$XAI_API_KEY"
+            printf 'export XAI_MODEL=%q\n'    "$XAI_MODEL"
+            cat <<'REMOTE'
+          set -euo pipefail
+          ENVF=/opt/adm/battle.env
+          [ -f "$ENVF" ] || { echo "missing $ENVF"; exit 1; }
+
+          # upsert KEY='VALUE' (single-quoted; values may contain & etc.)
+          upsert() {
+            local key="$1" val="$2"
+            if grep -q "^$key=" "$ENVF"; then
+              # delete old line, append fresh (avoids sed escaping the value)
+              grep -v "^$key=" "$ENVF" > "$ENVF.tmp"
+              mv "$ENVF.tmp" "$ENVF"
+            fi
+            printf "%s='%s'\n" "$key" "$val" >> "$ENVF"
+          }
+
+          upsert ADM_LLM_MODE              "openai"
+          upsert ADM_LLM_BASE_URL          "https://api.groq.com/openai/v1"
+          upsert ADM_LLM_API_KEY           "$GROQ_API_KEY"
+          upsert ADM_LLM_FALLBACK_BASE_URL "https://api.x.ai/v1"
+          upsert ADM_LLM_FALLBACK_API_KEY  "$XAI_API_KEY"
+          upsert ADM_LLM_FALLBACK_MODEL    "$XAI_MODEL"
+          chmod 600 "$ENVF"
+          echo "battle.env keys now:"; sed -E 's/=.*/=<set>/' "$ENVF"
+
+          cd /opt/adm/repo
+          git pull --ff-only || true          # pick up compose/env changes
+          set -a; . "$ENVF"; set +a
+          # pull the fallback-aware images (LLM failover + /api/llm) then recreate
+          docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml \
+            pull gateway planner summarizer analysis || true
+          docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml \
+            up -d --no-build --force-recreate gateway planner summarizer analysis
+          echo "recreated. containers:"; docker ps --format '{{.Names}}\t{{.Status}}'
+          REMOTE
+          } | ssh opc@"$BOX_HOST" 'sudo -E bash -s'
+
+      - name: Verify LLM providers
+        run: |
+          sleep 8
+          echo "== /api/llm =="
+          curl -fsS "https://api.dennisleehappy.org/api/llm" || true
+          echo; echo "== LLM Backend card =="
+          curl -fsS "https://api.dennisleehappy.org/api/system" \
+            | tr ',' '\n' | grep -A3 -i "LLM Backend" || true

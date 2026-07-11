@@ -23,6 +23,12 @@ export interface Dict {
   checking: string;
   cat: Record<string, string>;
 
+  llmTitle: string;
+  llmPrimary: string;
+  llmFallback: string;
+  llmActive: string;
+  llmUnconfigured: string;
+
   scoreboard: string;
   attacks: string;
   blockRate: string;
@@ -79,6 +85,11 @@ export const translations: Record<Lang, Dict> = {
     svcDown: "down",
     svcDisabled: "disabled",
     checking: "checking…",
+    llmTitle: "LLM backend (Groq → X.AI failover)",
+    llmPrimary: "Primary · Groq",
+    llmFallback: "Fallback · X.AI",
+    llmActive: "IN USE",
+    llmUnconfigured: "not configured",
     cat: { Edge: "Edge", Detection: "Detection", Agents: "Agents", Runtime: "Runtime", Data: "Data", Ops: "Ops" },
 
     scoreboard: "Battle scoreboard",
@@ -137,6 +148,11 @@ export const translations: Record<Lang, Dict> = {
     svcDown: "離線",
     svcDisabled: "未啟用",
     checking: "檢查中…",
+    llmTitle: "語言模型後端（Groq → X.AI 自動切換）",
+    llmPrimary: "主要 · Groq",
+    llmFallback: "備援 · X.AI",
+    llmActive: "使用中",
+    llmUnconfigured: "未設定",
     cat: { Edge: "邊界", Detection: "偵測", Agents: "代理", Runtime: "執行環境", Data: "資料", Ops: "維運" },
 
     scoreboard: "攻防計分板",

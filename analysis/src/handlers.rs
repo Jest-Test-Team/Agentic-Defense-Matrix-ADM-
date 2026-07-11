@@ -56,7 +56,7 @@ fn catalog() -> Vec<Svc> {
         Svc { name: "Planner Agent", tech: "Go + gRPC", category: "Agents", detail: "Task decomposition", probe: Http("http://planner:9081/health"), optional: false },
         Svc { name: "Executor Agent", tech: "Go + gRPC", category: "Agents", detail: "Tool execution (Docker API)", probe: Http("http://executor:9082/health"), optional: false },
         Svc { name: "Summarizer Agent", tech: "Go + gRPC", category: "Agents", detail: "Response summarization", probe: Http("http://summarizer:9083/health"), optional: false },
-        Svc { name: "LLM Backend", tech: "Groq / Ollama", category: "Agents", detail: "Chat-completion inference", probe: Llm, optional: false },
+        Svc { name: "LLM Backend", tech: "Groq → X.AI", category: "Agents", detail: "Chat-completion inference (Groq primary, X.AI fallback)", probe: Llm, optional: false },
         Svc { name: "Sandboxing", tech: "Docker API", category: "Runtime", detail: "Ephemeral per-agent containers (via executor)", probe: Http("http://executor:9082/health"), optional: false },
         Svc { name: "Storage", tech: "Redis 7", category: "Runtime", detail: "SIEM hot path + session store", probe: Tcp("redis:6379"), optional: false },
         Svc { name: "Durable Log", tech: "Neon Postgres", category: "Data", detail: "Retained battle-event log", probe: Db, optional: false },
@@ -93,18 +93,112 @@ pub async fn system(State(st): State<Arc<AppState>>) -> impl IntoResponse {
     Json(json!({ "services": results }))
 }
 
+/// LLM Backend is "up" if *either* the primary (Groq) or the fallback (X.AI)
+/// provider answers — the Go client fails over transparently, so from the
+/// stack's perspective inference is available as long as one is reachable.
 async fn probe_llm(http: &reqwest::Client) -> bool {
-    let base = std::env::var("ADM_LLM_BASE_URL").unwrap_or_default();
+    let (base, key) = primary_llm();
+    if probe_llm_url(http, &base, &key).await {
+        return true;
+    }
+    let (fb_base, fb_key) = fallback_llm();
+    !fb_base.is_empty() && probe_llm_url(http, &fb_base, &fb_key).await
+}
+
+fn primary_llm() -> (String, String) {
+    (
+        std::env::var("ADM_LLM_BASE_URL").unwrap_or_default(),
+        std::env::var("ADM_LLM_API_KEY").unwrap_or_default(),
+    )
+}
+
+fn fallback_llm() -> (String, String) {
+    (
+        std::env::var("ADM_LLM_FALLBACK_BASE_URL").unwrap_or_default(),
+        std::env::var("ADM_LLM_FALLBACK_API_KEY").unwrap_or_default(),
+    )
+}
+
+/// Friendly provider name derived from the API host, so the dashboard can label
+/// "Groq" vs "X.AI (Grok)" vs "Ollama" without hardcoding it server-side.
+fn provider_label(base: &str) -> &'static str {
+    let b = base.to_ascii_lowercase();
+    if b.contains("groq") {
+        "Groq"
+    } else if b.contains("x.ai") || b.contains("xai") {
+        "X.AI (Grok)"
+    } else if b.contains("openai") {
+        "OpenAI"
+    } else if b.is_empty() {
+        "None"
+    } else {
+        "Ollama / custom"
+    }
+}
+
+async fn probe_llm_url(http: &reqwest::Client, base: &str, key: &str) -> bool {
     if base.is_empty() {
         return false;
     }
     let mut req = http.get(format!("{}/models", base.trim_end_matches('/')));
-    if let Ok(key) = std::env::var("ADM_LLM_API_KEY") {
-        if !key.is_empty() {
-            req = req.bearer_auth(key);
-        }
+    if !key.is_empty() {
+        req = req.bearer_auth(key);
     }
     req.send().await.map(|r| r.status().as_u16() < 400).unwrap_or(false)
+}
+
+/// GET /api/llm : per-provider status of the primary (Groq) and fallback (X.AI)
+/// backends, plus which one is currently serving traffic.
+pub async fn llm() -> impl IntoResponse {
+    let http = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .unwrap_or_default();
+
+    let (p_base, p_key) = primary_llm();
+    let (f_base, f_key) = fallback_llm();
+
+    let (p_up, f_up) = futures::future::join(
+        probe_llm_url(&http, &p_base, &p_key),
+        probe_llm_url(&http, &f_base, &f_key),
+    )
+    .await;
+
+    // Active provider: primary if reachable, else the fallback if reachable.
+    let active = if p_up {
+        "primary"
+    } else if f_up && !f_base.is_empty() {
+        "fallback"
+    } else {
+        "none"
+    };
+
+    let status = |configured: bool, up: bool| {
+        if !configured {
+            "unconfigured"
+        } else if up {
+            "up"
+        } else {
+            "down"
+        }
+    };
+
+    let providers = json!([
+        {
+            "role": "primary",
+            "name": provider_label(&p_base),
+            "status": status(!p_base.is_empty(), p_up),
+            "active": active == "primary",
+        },
+        {
+            "role": "fallback",
+            "name": provider_label(&f_base),
+            "status": status(!f_base.is_empty(), f_up),
+            "active": active == "fallback",
+        }
+    ]);
+
+    Json(json!({ "active": active, "providers": providers }))
 }
 
 pub async fn ready(State(st): State<Arc<AppState>>) -> impl IntoResponse {

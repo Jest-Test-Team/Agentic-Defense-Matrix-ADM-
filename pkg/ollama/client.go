@@ -28,6 +28,13 @@ type Client struct {
 	maxRetries int
 	apiKey     string
 	openAI     bool
+	// model, when set, overrides the model name in every request — used so a
+	// fallback provider can substitute its own model id (e.g. an X.AI grok
+	// model in place of a Groq one).
+	model string
+	// fallback, when non-nil, is tried if this client's request fails after all
+	// retries — e.g. Groq is rate-limited or down and we fail over to X.AI.
+	fallback *Client
 }
 
 // Option configures the client.
@@ -58,6 +65,16 @@ func WithOpenAICompat(v bool) Option {
 	return func(c *Client) { c.openAI = v }
 }
 
+// WithModel pins the model id used for every request, overriding req.Model.
+func WithModel(m string) Option {
+	return func(c *Client) { c.model = m }
+}
+
+// WithFallback sets a secondary client tried when the primary fails.
+func WithFallback(fb *Client) Option {
+	return func(c *Client) { c.fallback = fb }
+}
+
 // NewClient creates a new LLM client.
 func NewClient(opts ...Option) *Client {
 	c := &Client{
@@ -77,6 +94,15 @@ func NewClient(opts ...Option) *Client {
 //	ADM_LLM_MODE     "ollama" (default) or "openai"
 //	ADM_LLM_BASE_URL base URL; falls back to ADM_OLLAMA_URL, then the Ollama default
 //	ADM_LLM_API_KEY  bearer token for openai mode (e.g. a Groq key)
+//	ADM_MODEL        model id for the primary provider
+//
+// When ADM_LLM_FALLBACK_API_KEY (or _BASE_URL) is set, a second OpenAI-compatible
+// provider is attached as a failover, tried automatically when the primary fails
+// (e.g. Groq is rate-limited/down → fail over to X.AI):
+//
+//	ADM_LLM_FALLBACK_BASE_URL  e.g. https://api.x.ai/v1
+//	ADM_LLM_FALLBACK_API_KEY   e.g. an xai-... key
+//	ADM_LLM_FALLBACK_MODEL     e.g. grok-2-latest
 func NewClientFromEnv() *Client {
 	mode := strings.ToLower(os.Getenv("ADM_LLM_MODE"))
 	baseURL := os.Getenv("ADM_LLM_BASE_URL")
@@ -89,6 +115,30 @@ func NewClientFromEnv() *Client {
 	}
 	if mode == "openai" {
 		opts = append(opts, WithOpenAICompat(true), WithAPIKey(os.Getenv("ADM_LLM_API_KEY")))
+		if m := os.Getenv("ADM_MODEL"); m != "" {
+			opts = append(opts, WithModel(m))
+		}
+		if fb := fallbackFromEnv(); fb != nil {
+			opts = append(opts, WithFallback(fb))
+		}
+	}
+	return NewClient(opts...)
+}
+
+// fallbackFromEnv builds the OpenAI-compatible failover client, or nil if no
+// fallback key/URL is configured.
+func fallbackFromEnv() *Client {
+	key := os.Getenv("ADM_LLM_FALLBACK_API_KEY")
+	url := os.Getenv("ADM_LLM_FALLBACK_BASE_URL")
+	if key == "" && url == "" {
+		return nil
+	}
+	opts := []Option{WithOpenAICompat(true), WithAPIKey(key)}
+	if url != "" {
+		opts = append(opts, WithBaseURL(url))
+	}
+	if m := os.Getenv("ADM_LLM_FALLBACK_MODEL"); m != "" {
+		opts = append(opts, WithModel(m))
 	}
 	return NewClient(opts...)
 }
@@ -153,10 +203,24 @@ type ChatResponse struct {
 	EvalDuration    int64       `json:"eval_duration"`
 }
 
-// Chat sends a chat request and returns the full response.
+// Chat sends a chat request and returns the full response. If this client has a
+// fallback and the primary attempt fails after all retries, the request is
+// transparently retried against the fallback provider.
 func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	req.Stream = false
+	if c.model != "" {
+		req.Model = c.model
+	}
 
+	resp, err := c.chatPrimary(ctx, req)
+	if err != nil && c.fallback != nil {
+		return c.fallback.Chat(ctx, req)
+	}
+	return resp, err
+}
+
+// chatPrimary runs the request against this client only (no fallback).
+func (c *Client) chatPrimary(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	if c.openAI {
 		return c.chatOpenAI(ctx, req)
 	}
@@ -369,6 +433,14 @@ func (c *Client) IsModelAvailable(ctx context.Context, modelName string) (bool, 
 // HealthCheck verifies the LLM backend is reachable. Ollama exposes /api/tags;
 // OpenAI-compatible backends (Groq) expose /models.
 func (c *Client) HealthCheck(ctx context.Context) error {
+	err := c.healthCheckPrimary(ctx)
+	if err != nil && c.fallback != nil {
+		return c.fallback.HealthCheck(ctx)
+	}
+	return err
+}
+
+func (c *Client) healthCheckPrimary(ctx context.Context) error {
 	path := "/api/tags"
 	if c.openAI {
 		path = "/models"

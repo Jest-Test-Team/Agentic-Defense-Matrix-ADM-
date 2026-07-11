@@ -10,6 +10,7 @@ import {
   type SessionRow,
   type BattleEvent,
   type SystemService,
+  type LlmStatus,
 } from "@/lib/api";
 import { translations, getLang, setLang, type Lang, type Dict } from "@/lib/i18n";
 
@@ -24,6 +25,7 @@ export default function Page() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [services, setServices] = useState<SystemService[]>([]);
+  const [llm, setLlm] = useState<LlmStatus | null>(null);
   const [events, setEvents] = useState<BattleEvent[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [mixedContent, setMixedContent] = useState(false);
@@ -68,6 +70,11 @@ export default function Page() {
       setServices(s.services ?? []);
     } catch {
       setServices([]);
+    }
+    try {
+      setLlm(await api.llm(cfg));
+    } catch {
+      setLlm(null);
     }
   }, [cfg]);
 
@@ -160,6 +167,15 @@ export default function Page() {
           ))
         )}
 
+        <h2 className="section">{t.llmTitle}</h2>
+        <div className="status-grid">
+          {llm
+            ? llm.providers.map((p) => <LlmCard key={p.role} p={p} t={t} />)
+            : (
+              <div className="status-card"><div className="pill warn">…</div><div><div className="val">{t.checking}</div></div></div>
+            )}
+        </div>
+
         <h2 className="section">{t.scoreboard}</h2>
         <div className="tiles">
           <Tile k={t.attacks} v={stats ? String(stats.attacks) : "–"} cls="red" />
@@ -239,6 +255,25 @@ function ServiceCard({ svc, t }: { svc: SystemService; t: Dict }) {
       <div className="svc-meta">
         <div className="svc-name">{svc.name} <span className="svc-tech">{svc.tech}</span></div>
         <div className="svc-detail">{svc.detail}</div>
+        <div className={`val ${cls}-text`}>{word}</div>
+      </div>
+    </div>
+  );
+}
+
+function LlmCard({ p, t }: { p: LlmStatus["providers"][number]; t: Dict }) {
+  const cls = p.status === "up" ? "good" : p.status === "unconfigured" ? "warn" : "crit";
+  const icon = p.status === "up" ? "✓" : p.status === "unconfigured" ? "○" : "✕";
+  const word = p.status === "up" ? t.svcUp : p.status === "unconfigured" ? t.llmUnconfigured : t.svcDown;
+  const roleLabel = p.role === "primary" ? t.llmPrimary : t.llmFallback;
+  return (
+    <div className="status-card" title={roleLabel}>
+      <div className={`pill ${cls}`}>{icon}</div>
+      <div className="svc-meta">
+        <div className="svc-name">
+          {p.name} <span className="svc-tech">{roleLabel}</span>
+          {p.active && <span className="tag green" style={{ marginLeft: 6 }}>{t.llmActive}</span>}
+        </div>
         <div className={`val ${cls}-text`}>{word}</div>
       </div>
     </div>

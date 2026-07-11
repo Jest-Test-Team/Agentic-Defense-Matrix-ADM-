@@ -62,6 +62,9 @@ services:
       - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-http://ollama:11434}
       - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
       - ADM_MODEL=${ADM_MODEL:-llama3.1:8b}
+      - ADM_LLM_FALLBACK_BASE_URL=${ADM_LLM_FALLBACK_BASE_URL:-}
+      - ADM_LLM_FALLBACK_API_KEY=${ADM_LLM_FALLBACK_API_KEY:-}
+      - ADM_LLM_FALLBACK_MODEL=${ADM_LLM_FALLBACK_MODEL:-}
       - ADM_REDIS_URL=redis://redis:6379
       - ADM_SIEM_URL=http://siem:9091
       - ADM_POLICY_URL=http://policy:8181
@@ -152,6 +155,9 @@ services:
       - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-http://ollama:11434}
       - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
       - ADM_MODEL=${ADM_MODEL:-llama3.1:8b}
+      - ADM_LLM_FALLBACK_BASE_URL=${ADM_LLM_FALLBACK_BASE_URL:-}
+      - ADM_LLM_FALLBACK_API_KEY=${ADM_LLM_FALLBACK_API_KEY:-}
+      - ADM_LLM_FALLBACK_MODEL=${ADM_LLM_FALLBACK_MODEL:-}
       - ADM_LOG_LEVEL=info
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     healthcheck:
@@ -202,6 +208,9 @@ services:
       - ADM_LLM_BASE_URL=${ADM_LLM_BASE_URL:-http://ollama:11434}
       - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
       - ADM_MODEL=${ADM_MODEL:-llama3.1:8b}
+      - ADM_LLM_FALLBACK_BASE_URL=${ADM_LLM_FALLBACK_BASE_URL:-}
+      - ADM_LLM_FALLBACK_API_KEY=${ADM_LLM_FALLBACK_API_KEY:-}
+      - ADM_LLM_FALLBACK_MODEL=${ADM_LLM_FALLBACK_MODEL:-}
       - ADM_LOG_LEVEL=info
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     healthcheck:

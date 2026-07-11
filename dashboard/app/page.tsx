@@ -348,14 +348,27 @@ function DetailModal({ modal, t, onClose }: { modal: NonNullable<Modal>; t: Dict
 function ServiceCard({ svc, t, onClick }: { svc: SystemService; t: Dict; onClick: () => void }) {
   const cls = svc.status === "up" ? "good" : svc.status === "disabled" ? "warn" : "crit";
   const icon = svc.status === "up" ? "✓" : svc.status === "disabled" ? "○" : "✕";
-  const word = svc.status === "up" ? t.svcUp : svc.status === "disabled" ? t.svcDisabled : t.svcDown;
+  // A disabled component that carries a hint isn't broken — it's off by design.
+  // Watchdog is host-only; others (otel) are one-flag opt-ins. Say so, so a
+  // yellow card never reads as a fault.
+  const isHostOnly = svc.name === "Endpoint Watchdog";
+  const word =
+    svc.status === "up"
+      ? t.svcUp
+      : svc.status === "disabled"
+      ? svc.hint
+        ? isHostOnly
+          ? t.hostOnly
+          : t.enableHint
+        : t.svcDisabled
+      : t.svcDown;
   return (
     <div className="status-card clickable" title={t.clickHint} onClick={onClick}>
       <div className={`pill ${cls}`}>{icon}</div>
       <div className="svc-meta">
         <div className="svc-name">{svc.name} <span className="svc-tech">{svc.tech}</span></div>
         <div className="svc-detail">{svc.detail}</div>
-        <div className={`val ${cls}-text`}>{word}</div>
+        <div className={`val ${cls}-text`}>{word}{svc.hint && <span className="svc-more"> · {t.clickHint} ›</span>}</div>
       </div>
     </div>
   );

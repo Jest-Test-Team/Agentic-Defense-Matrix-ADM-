@@ -176,6 +176,11 @@ h2.section {
 .modal-x:hover { color: var(--ink); }
 .modal-body { padding: 14px 18px; overflow-y: auto; }
 .modal-detail { color: var(--ink-2); line-height: 1.6; margin: 12px 0 0; }
+.modal-hint {
+  margin-top: 12px; padding: 11px 13px; border-radius: 9px; line-height: 1.55;
+  background: rgba(57,135,229,.10); border: 1px solid rgba(57,135,229,.35); color: var(--ink-2); font-size: 12.5px;
+}
+.svc-more { color: var(--ink-3); font-weight: 400; font-size: 11px; }
 .kv-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .kv-row .k { color: var(--ink-3); }
 .kv-row .v { font-weight: 600; }

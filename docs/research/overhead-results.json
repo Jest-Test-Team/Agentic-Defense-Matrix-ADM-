@@ -1,0 +1,57 @@
+{
+  "producers": 8,
+  "ops_per_producer": 500000,
+  "total_events": 4000000,
+  "capacity": 65536,
+  "cpus": 8,
+  "lockfree": {
+    "name": "lock-free ring buffer",
+    "events": 4000000,
+    "duration_ms": 818.532,
+    "throughput_per_sec": 4886797.088879265,
+    "ns_per_op": 204.6330105,
+    "heap_alloc_kb": 20.859375,
+    "total_alloc_kb": 20.859375,
+    "mallocs": 49,
+    "num_gc": 0
+  },
+  "mutex": {
+    "name": "mutex-guarded queue",
+    "events": 4000000,
+    "duration_ms": 2221.521,
+    "throughput_per_sec": 1800567.865344082,
+    "ns_per_op": 555.38034375,
+    "heap_alloc_kb": 62.109375,
+    "total_alloc_kb": 62.109375,
+    "mallocs": 601,
+    "num_gc": 0
+  },
+  "lockfree_speedup": 2.714031047058265,
+  "overhead_by_rate": [
+    {
+      "events_per_sec": 10000,
+      "lockfree_cpu_pct": 0.20463301050000002,
+      "mutex_cpu_pct": 0.5553803437499999
+    },
+    {
+      "events_per_sec": 50000,
+      "lockfree_cpu_pct": 1.0231650525,
+      "mutex_cpu_pct": 2.7769017187499996
+    },
+    {
+      "events_per_sec": 100000,
+      "lockfree_cpu_pct": 2.046330105,
+      "mutex_cpu_pct": 5.553803437499999
+    },
+    {
+      "events_per_sec": 500000,
+      "lockfree_cpu_pct": 10.231650525,
+      "mutex_cpu_pct": 27.7690171875
+    },
+    {
+      "events_per_sec": 1000000,
+      "lockfree_cpu_pct": 20.46330105,
+      "mutex_cpu_pct": 55.538034375
+    }
+  ]
+}

@@ -57,6 +57,11 @@ MITRE ATLAS alignment, ablations, reproducibility) and
   **theory-matches-experiment** plot: `go run ./cmd/sweep` sweeps the window W at
   fixed θ; measured FPR (38%→0%) and detection (76%→100%) track the Eq. 2/3
   exponential bounds. `figures.html` renders it + the asymmetry chart (published Artifact).
+- [overhead-results.md](overhead-results.md) — the **≤5% overhead / Pareto rig** for C2:
+  `go run ./cmd/overhead` benchmarks the lock-free ring buffer vs a mutex queue.
+  Lock-free 3.23M ev/s @ 310 ns (2× lower cost, O(capacity) memory, zero GC); derived
+  CPU overhead stays **< 5%** to ≈160k ev/s (mutex breaches at ≈80k). Figure 3 in
+  `figures.html`.
 
 ## Thesis statement (the one sentence a reviewer must remember)
 

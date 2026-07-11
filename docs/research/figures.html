@@ -56,8 +56,8 @@
 <header class="mast">
   <div class="mast-inner">
     <div>
-      <p class="eyebrow">ADM · Contribution C1 · reproducible figures</p>
-      <h1>Intent-Drift Detection — theory meets measurement</h1>
+      <p class="eyebrow">ADM · Contributions C1 &amp; C2 · reproducible figures</p>
+      <h1>Intent-Drift Detection &amp; Asymmetric Containment — theory meets measurement</h1>
       <p class="sub">Generated from <code style="font-family:var(--mono)">go run ./cmd/sweep</code> and <code style="font-family:var(--mono)">./cmd/latency</code> on the seed-1337 corpus. Every point is measured; the dashed curves are the closed-form bounds.</p>
     </div>
     <button id="themebtn" title="theme">◐ theme</button>
@@ -96,8 +96,20 @@
     <p class="note">ADM values measured (<code>./cmd/latency</code>); Llama Guard is a hosted-inference reference band — run <code>./cmd/baseline</code> with a Groq key to replace it with your measured number.</p>
   </section>
 
+  <section class="fig">
+    <h2>Figure 3 — Steady-state overhead: the ≤5% claim (lock-free vs mutex)</h2>
+    <p class="cap">The SIEM hot path on ADM's <b>lock-free ring buffer</b> costs <b>310 ns/event</b> vs <b>618 ns</b> for a mutex-guarded queue of equal capacity (2× lower, bounded O(capacity) memory, near-zero GC). Derived single-core CPU overhead vs event rate: the lock-free path stays <b>under 5%</b> up to ≈160k events/s, where the mutex baseline breaches it at ≈80k.</p>
+    <svg id="ovh" viewBox="0 0 720 300" role="img" aria-label="CPU overhead vs event rate"></svg>
+    <div class="legend">
+      <span><span class="sw" style="border-color:var(--aqua)"></span>lock-free ring buffer</span>
+      <span><span class="sw" style="border-color:var(--yellow)"></span>mutex-guarded queue</span>
+      <span><span class="sw dash" style="border-color:var(--red)"></span>5% budget</span>
+    </div>
+    <p class="note">Data: <code>docs/research/overhead-results.json</code> (<code>./cmd/overhead</code>). Overhead% = rate·(ns/op)/10⁷ on one core.</p>
+  </section>
+
   <footer>
-    Reproduce: <code style="font-family:var(--mono)">go run ./cmd/sweep</code> · <code style="font-family:var(--mono)">go run ./cmd/latency</code> · <code style="font-family:var(--mono)">go run ./cmd/ablation</code>. Formalization in <code>docs/research/</code>.
+    Reproduce: <code style="font-family:var(--mono)">go run ./cmd/sweep</code> · <code style="font-family:var(--mono)">./cmd/latency</code> · <code style="font-family:var(--mono)">./cmd/ablation</code> · <code style="font-family:var(--mono)">./cmd/overhead</code>. Formalization in <code>docs/research/</code>.
   </footer>
 </div>
 
@@ -121,6 +133,14 @@ const LAT = [
   {name:"ADM drift · per-observation", ms:0.0082, c:"aqua", measured:true},
   {name:"ADM drift · time-to-flag",    ms:0.033,  c:"blue", measured:true},
   {name:"Llama Guard · 8B inference (ref.)", ms:200, c:"red", measured:false},
+];
+// CPU overhead % vs event rate (from cmd/overhead)
+const OVH = [
+  {rate:10000,  lf:0.31,  mx:0.62},
+  {rate:50000,  lf:1.55,  mx:3.09},
+  {rate:100000, lf:3.10,  mx:6.18},
+  {rate:500000, lf:15.48, mx:30.89},
+  {rate:1000000,lf:30.96, mx:61.78},
 ];
 
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -200,10 +220,50 @@ function asymChart(){
     .textContent="α ≈ 6,000–24,000×";
 }
 
+// ---- overhead vs event-rate (log-x, linear-y %) ------------------------------
+function overheadChart(){
+  const svg=document.getElementById("ovh"); if(!svg) return; svg.textContent="";
+  const W=720,H=300,L=52,R=90,T=16,B=42;
+  const lo=Math.log10(8000), hi=Math.log10(1.3e6);
+  const xpos=r=>L+(Math.log10(r)-lo)/(hi-lo)*(W-L-R);
+  const ymax=40, ypos=v=>T+(1-Math.min(v,ymax)/ymax)*(H-T-B);
+  // y grid
+  [0,5,10,20,30,40].forEach(v=>{
+    const y=ypos(v);
+    svg.appendChild(el("line",{x1:L,y1:y,x2:W-R,y2:y,class:v===5?"":"grid"}));
+    svg.appendChild(el("text",{x:L-6,y:y+3,"text-anchor":"end",class:"tick"})).textContent=v+"%";
+  });
+  // 5% budget line (dashed red)
+  const y5=ypos(5);
+  svg.appendChild(el("line",{x1:L,y1:y5,x2:W-R,y2:y5,stroke:css("--red"),"stroke-width":1.4,"stroke-dasharray":"5 4"}));
+  svg.appendChild(el("text",{x:W-R+6,y:y5+3,class:"barlab",fill:css("--red")})).textContent="5%";
+  // x ticks
+  OVH.forEach(p=>{
+    const x=xpos(p.rate);
+    svg.appendChild(el("text",{x:x,y:H-B+16,"text-anchor":"middle",class:"tick"}))
+      .textContent = p.rate>=1e6?(p.rate/1e6)+"M":(p.rate/1e3)+"k";
+  });
+  svg.appendChild(el("text",{x:(L+W-R)/2,y:H-4,"text-anchor":"middle",class:"alab"})).textContent="event rate (events/sec, log)";
+  svg.appendChild(el("line",{x1:L,y1:T,x2:L,y2:H-B,class:"axis"}));
+  svg.appendChild(el("line",{x1:L,y1:H-B,x2:W-R,y2:H-B,class:"axis"}));
+  const series=(key,color)=>{
+    const d=OVH.map((p,i)=>(i?"L":"M")+xpos(p.rate).toFixed(1)+" "+ypos(p[key]).toFixed(1)).join(" ");
+    svg.appendChild(el("path",{d,fill:"none",stroke:css(color),"stroke-width":2.4}));
+    OVH.forEach(p=>svg.appendChild(el("circle",{cx:xpos(p.rate),cy:ypos(p[key]),r:3.2,fill:css(color),stroke:css("--surface"),"stroke-width":1.5})));
+  };
+  series("mx","--yellow");
+  series("lf","--aqua");
+  // direct labels at 100k
+  const p=OVH[2];
+  svg.appendChild(el("text",{x:xpos(p.rate)+6,y:ypos(p.lf)-6,class:"barlab",fill:css("--aqua")})).textContent="3.1%";
+  svg.appendChild(el("text",{x:xpos(p.rate)+6,y:ypos(p.mx)-6,class:"barlab",fill:css("--yellow")})).textContent="6.2%";
+}
+
 function drawAll(){
   lineChart("fpr","mf","pf","--red",true);
   lineChart("det","md","pd","--blue",false);
   asymChart();
+  overheadChart();
 }
 document.getElementById("themebtn").addEventListener("click",()=>{
   const r=document.documentElement;

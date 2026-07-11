@@ -69,7 +69,9 @@ jobs:
           echo "battle.env keys now:"; sed -E 's/=.*/=<set>/' "$ENVF"
 
           cd /opt/adm/repo
-          git pull --ff-only || true          # pick up compose/env changes
+          # Hard-sync to origin/main so the compose files carry the fallback env.
+          # battle.env lives outside the repo, so this never touches secrets.
+          git fetch --all -q && git reset --hard origin/main -q
           set -a; . "$ENVF"; set +a
           # pull the fallback-aware images (LLM failover + /api/llm) then recreate
           docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml \

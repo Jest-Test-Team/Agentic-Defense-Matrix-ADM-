@@ -64,6 +64,11 @@ export interface Dict {
   colRemediation: string;
   noSessions: string;
 
+  redTeamMatrix: string;
+  matrixId: string;
+  matrixAttack: string;
+  matrixTechnique: string;
+
   endpoint: string;
   analysisUrl: string;
   gatewayUrl: string;
@@ -71,6 +76,7 @@ export interface Dict {
   orUse: string;
 
   footNote: string;
+  githubLink: string;
   mixedContent: string;
 }
 
@@ -137,6 +143,11 @@ export const translations: Record<Lang, Dict> = {
     colRemediation: "remediation / MTTR",
     noSessions: "No sessions yet.",
 
+    redTeamMatrix: "Red team attack matrix",
+    matrixId: "ID",
+    matrixAttack: "Attack",
+    matrixTechnique: "Technique",
+
     endpoint: "Endpoint",
     analysisUrl: "analysis API base URL",
     gatewayUrl: "gateway base URL",
@@ -145,6 +156,7 @@ export const translations: Record<Lang, Dict> = {
 
     footNote:
       "Polls the analysis API every few seconds and streams live events over Server-Sent Events. Durable log in Neon Postgres; search and aggregation in Elasticsearch.",
+    githubLink: "GitHub repository",
     mixedContent:
       "Live data is blocked by the browser (mixed content): this page is HTTPS but the API endpoint is HTTP. Point the dashboard at an HTTPS endpoint with ?api=https://your-host, or use the Endpoint box below.",
   },
@@ -210,6 +222,11 @@ export const translations: Record<Lang, Dict> = {
     colRemediation: "修復 / 修復時間",
     noSessions: "尚無連線紀錄。",
 
+    redTeamMatrix: "紅隊攻擊矩陣",
+    matrixId: "ID",
+    matrixAttack: "攻擊",
+    matrixTechnique: "技術",
+
     endpoint: "連線端點",
     analysisUrl: "分析 API 網址",
     gatewayUrl: "閘道網址",
@@ -218,6 +235,7 @@ export const translations: Record<Lang, Dict> = {
 
     footNote:
       "每幾秒輪詢一次分析 API，並透過 Server-Sent Events 串流即時事件。永久紀錄存放在 Neon Postgres；搜尋與彙整由 Elasticsearch 負責。",
+    githubLink: "GitHub 原始碼",
     mixedContent:
       "瀏覽器擋下了即時資料（混合內容）：本頁是 HTTPS，但 API 端點是 HTTP。請用 ?api=https://你的主機 指向 HTTPS 端點，或使用下方的連線端點欄位。",
   },

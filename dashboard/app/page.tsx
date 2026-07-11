@@ -16,6 +16,39 @@ import { translations, getLang, setLang, type Lang, type Dict } from "@/lib/i18n
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 const CATEGORY_ORDER = ["Edge", "Detection", "Agents", "Runtime", "Data", "Ops"];
+const GITHUB_URL = "https://github.com/Jest-Test-Team/Agentic-Defense-Matrix-ADM";
+const RED_TEAM_ATTACKS = [
+  { id: "RT-001", attack: "Prompt Injection", technique: "Indirect injection via RAG context" },
+  { id: "RT-002", attack: "Tool Chaining", technique: "read_secret → external_send chain" },
+  { id: "RT-003", attack: "RAG Poisoning", technique: "Inject malicious URLs into knowledge base" },
+  { id: "RT-004", attack: "Reverse Shell", technique: "bash -i >& /dev/tcp/... via tool call" },
+  { id: "RT-005", attack: "Confused Deputy", technique: "Trick agent into privilege escalation" },
+  { id: "RT-006", attack: "Token Theft", technique: "Replay captured JWT" },
+  { id: "RT-007", attack: "Egress Exfiltration", technique: "DNS tunnel / HTTP POST to external" },
+  { id: "RT-008", attack: "Container Escape", technique: "Mount host filesystem attempts" },
+  { id: "RT-009", attack: "Rate Abuse", technique: "1000 req/min automated probing" },
+  { id: "RT-010", attack: "State Drift", technique: "Modify agent context mid-session" },
+  { id: "RT-011", attack: "LLM Supply Chain", technique: "Compromised Ollama model" },
+  { id: "RT-012", attack: "Log Injection", technique: "Crafted payloads in user input" },
+  { id: "RT-013", attack: "TOCTOU Race", technique: "Race condition in policy check" },
+  { id: "RT-014", attack: "DNS Rebinding", technique: "Bypass egress filter via DNS" },
+  { id: "RT-015", attack: "Privilege Escalation", technique: "Exploit Watchdog → root" },
+  { id: "RT-016", attack: "Indirect Tool Output", technique: "Inject malicious instructions in tool output" },
+  { id: "RT-017", attack: "Multi-Turn Context", technique: "Build trust then exploit across turns" },
+  { id: "RT-018", attack: "Encoding Injection", technique: "Base64/hex encoded payloads" },
+  { id: "RT-019", attack: "Multi-Language", technique: "Injection in multiple languages" },
+  { id: "RT-020", attack: "Nested Injection", technique: "Nested system/user/assistant markers" },
+  { id: "RT-021", attack: "Social Engineering", technique: "Fake admin/emergency commands" },
+  { id: "RT-022", attack: "Payload Obfuscation", technique: "Variable splitting, concatenation" },
+  { id: "RT-023", attack: "Supply Chain", technique: "Malicious package installation" },
+  { id: "RT-024", attack: "Time-Based", technique: "Delayed trigger injection" },
+  { id: "RT-025", attack: "Resource Exhaustion", technique: "Large payloads, concurrent requests" },
+  { id: "RT-026", attack: "Memory Poisoning", technique: "Poison agent conversation memory" },
+  { id: "RT-027", attack: "Cross-Session", technique: "Contaminate other sessions" },
+  { id: "RT-028", attack: "Token Extraction", technique: "Extract API keys/tokens" },
+  { id: "RT-029", attack: "Denial of Service", technique: "Excessive token generation" },
+  { id: "RT-030", attack: "Side Channel", technique: "Data exfiltration via encoding" },
+];
 
 type Modal =
   | { kind: "svc"; svc: SystemService }
@@ -249,9 +282,14 @@ export default function Page() {
           {sessions.length === 0 && <div className="feed-row muted">{t.noSessions}</div>}
         </div>
 
+        <AttackMatrix t={t} />
+
         <Settings cfg={cfg} t={t} />
 
-        <div className="foot-note">{t.footNote}</div>
+        <footer className="foot-note">
+          <span>{t.footNote}</span>
+          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">{t.githubLink}</a>
+        </footer>
       </div>
 
       {modal && <DetailModal modal={modal} t={t} onClose={() => setModal(null)} />}
@@ -386,6 +424,34 @@ function EventRow({ ev }: { ev: BattleEvent }) {
       <span className="detail">{ev.detail || ""}</span>
       <span className={`out ${ev.outcome || ""}`}>{ev.outcome || ""}</span>
     </div>
+  );
+}
+
+function AttackMatrix({ t }: { t: Dict }) {
+  return (
+    <>
+      <h2 className="section">{t.redTeamMatrix}</h2>
+      <div className="matrix-panel">
+        <table className="attack-matrix">
+          <thead>
+            <tr>
+              <th>{t.matrixId}</th>
+              <th>{t.matrixAttack}</th>
+              <th>{t.matrixTechnique}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {RED_TEAM_ATTACKS.map((row) => (
+              <tr key={row.id}>
+                <td className="matrix-id">{row.id}</td>
+                <td>{row.attack}</td>
+                <td>{row.technique}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

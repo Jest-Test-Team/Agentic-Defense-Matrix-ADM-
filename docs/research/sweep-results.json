@@ -1,0 +1,79 @@
+{
+  "theta": 0.6349,
+  "mu_b": 0.5781,
+  "sigma_b": 0.1125,
+  "mu_a": 0.6916,
+  "sigma_a": 0.0725,
+  "points": [
+    {
+      "w": 1,
+      "meas_fpr": 0.3796,
+      "pred_fpr": 0.8805,
+      "meas_detect": 0.764,
+      "pred_detect": 0.2639
+    },
+    {
+      "w": 2,
+      "meas_fpr": 0.2639,
+      "pred_fpr": 0.7752,
+      "meas_detect": 0.8538,
+      "pred_detect": 0.4582
+    },
+    {
+      "w": 3,
+      "meas_fpr": 0.1898,
+      "pred_fpr": 0.6825,
+      "meas_detect": 0.9035,
+      "pred_detect": 0.6012
+    },
+    {
+      "w": 4,
+      "meas_fpr": 0.1435,
+      "pred_fpr": 0.6009,
+      "meas_detect": 0.9348,
+      "pred_detect": 0.7064
+    },
+    {
+      "w": 6,
+      "meas_fpr": 0.0926,
+      "pred_fpr": 0.4658,
+      "meas_detect": 0.9738,
+      "pred_detect": 0.8409
+    },
+    {
+      "w": 8,
+      "meas_fpr": 0.0602,
+      "pred_fpr": 0.3611,
+      "meas_detect": 0.9875,
+      "pred_detect": 0.9138
+    },
+    {
+      "w": 12,
+      "meas_fpr": 0.037,
+      "pred_fpr": 0.217,
+      "meas_detect": 0.9973,
+      "pred_detect": 0.9747
+    },
+    {
+      "w": 16,
+      "meas_fpr": 0.0046,
+      "pred_fpr": 0.1304,
+      "meas_detect": 1,
+      "pred_detect": 0.9926
+    },
+    {
+      "w": 24,
+      "meas_fpr": 0,
+      "pred_fpr": 0.0471,
+      "meas_detect": 1,
+      "pred_detect": 0.9994
+    },
+    {
+      "w": 32,
+      "meas_fpr": 0,
+      "pred_fpr": 0.017,
+      "meas_detect": 1,
+      "pred_detect": 0.9999
+    }
+  ]
+}

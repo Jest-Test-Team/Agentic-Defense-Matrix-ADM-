@@ -53,6 +53,10 @@ MITRE ATLAS alignment, ablations, reproducibility) and
   corpus and computes the **asymmetry α**. ADM arm measured (p50 ≈ 20 µs/msg); the
   Llama Guard arm runs with a Groq key (per-message model inference ≈ 10²–10³ ms →
   α ≈ 10³–10⁴×).
+- [sweep-results.md](sweep-results.md) + **[figures.html](figures.html)** — the
+  **theory-matches-experiment** plot: `go run ./cmd/sweep` sweeps the window W at
+  fixed θ; measured FPR (38%→0%) and detection (76%→100%) track the Eq. 2/3
+  exponential bounds. `figures.html` renders it + the asymmetry chart (published Artifact).
 
 ## Thesis statement (the one sentence a reviewer must remember)
 

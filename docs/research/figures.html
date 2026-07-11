@@ -1,0 +1,214 @@
+<style>
+  :root {
+    --paper:#f4f1ea; --surface:#fbf9f4; --ink:#1c1a17; --ink-2:#4a4640; --ink-3:#837c70;
+    --line:#d9d3c6; --grid:#e6e1d6;
+    --blue:#2f6fd0; --aqua:#128a5f; --red:#c0392f; --yellow:#a9730a; --violet:#6f63c9;
+    --serif:Georgia,"Iowan Old Style","Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#131311; --surface:#1b1a17; --ink:#ece7dc; --ink-2:#b7b1a3; --ink-3:#837c6d;
+    --line:#2e2b25; --grid:#26241f;
+    --blue:#5b9bf0; --aqua:#3bb381; --red:#e06b60; --yellow:#d0a24e; --violet:#9085e9;
+  }}
+  :root[data-theme="dark"]{
+    --paper:#131311; --surface:#1b1a17; --ink:#ece7dc; --ink-2:#b7b1a3; --ink-3:#837c6d;
+    --line:#2e2b25; --grid:#26241f;
+    --blue:#5b9bf0; --aqua:#3bb381; --red:#e06b60; --yellow:#d0a24e; --violet:#9085e9;
+  }
+  :root[data-theme="light"]{
+    --paper:#f4f1ea; --surface:#fbf9f4; --ink:#1c1a17; --ink-2:#4a4640; --ink-3:#837c70;
+    --line:#d9d3c6; --grid:#e6e1d6;
+    --blue:#2f6fd0; --aqua:#128a5f; --red:#c0392f; --yellow:#a9730a; --violet:#6f63c9;
+  }
+  *{box-sizing:border-box;} body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 72px;}
+  header.mast{border-bottom:2px solid var(--ink);padding:26px 24px 16px;margin-bottom:8px;}
+  .mast-inner{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--red);margin:0 0 6px;}
+  h1{font-family:var(--serif);font-size:clamp(24px,3.4vw,34px);margin:0;line-height:1.08;letter-spacing:-.01em;text-wrap:balance;}
+  .sub{color:var(--ink-2);font-size:14px;margin:8px 0 0;max-width:64ch;}
+  #themebtn{font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;}
+  .fig{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px 18px;margin:26px 0;box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 30px rgba(0,0,0,.06);}
+  .fig h2{font-family:var(--serif);font-size:19px;margin:0 0 4px;}
+  .fig .cap{color:var(--ink-3);font-size:13px;margin:0 0 14px;max-width:80ch;}
+  .fig .cap b{color:var(--ink-2);}
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  @media (max-width:760px){.panels{grid-template-columns:1fr;}}
+  .panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;}
+  svg{width:100%;height:auto;display:block;overflow:visible;}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--ink-2);margin:10px 2px 0;}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .sw{width:22px;height:0;border-top-width:2.5px;border-top-style:solid;}
+  .sw.dash{border-top-style:dashed;}
+  .axis{stroke:var(--line);stroke-width:1;} .grid{stroke:var(--grid);stroke-width:1;}
+  .tick{fill:var(--ink-3);font-family:var(--mono);font-size:10px;}
+  .alab{fill:var(--ink-3);font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;}
+  .note{color:var(--ink-3);font-size:12.5px;margin:6px 2px 0;}
+  .note code{font-family:var(--mono);background:var(--paper);padding:1px 5px;border-radius:4px;}
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;}
+  footer code{background:var(--surface);}
+  .barlab{fill:var(--ink);font-family:var(--mono);font-size:11px;}
+  .barcat{fill:var(--ink-2);font-family:var(--sans);font-size:12px;}
+</style>
+
+<header class="mast">
+  <div class="mast-inner">
+    <div>
+      <p class="eyebrow">ADM · Contribution C1 · reproducible figures</p>
+      <h1>Intent-Drift Detection — theory meets measurement</h1>
+      <p class="sub">Generated from <code style="font-family:var(--mono)">go run ./cmd/sweep</code> and <code style="font-family:var(--mono)">./cmd/latency</code> on the seed-1337 corpus. Every point is measured; the dashed curves are the closed-form bounds.</p>
+    </div>
+    <button id="themebtn" title="theme">◐ theme</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="fig">
+    <h2>Figure 1 — Windowing improves false-positives and detection at once</h2>
+    <p class="cap">At a <b>fixed</b> threshold θ=0.635 (the μ<sub>b</sub>/μ<sub>a</sub> midpoint), sweeping the window W drives the benign false-positive rate to zero <b>and</b> lifts attack detection to 100%. Measured curves sit inside the exponential bounds of Eq. 2/3 (Hoeffding upper-bounds the error), confirming the detection–latency law: joint error decays ∝ exp(−W·margin²).</p>
+    <div class="panels">
+      <div class="panel">
+        <h3>Benign false-positive rate vs W  (log scale)</h3>
+        <svg id="fpr" viewBox="0 0 380 240" role="img" aria-label="FPR vs window"></svg>
+        <div class="legend">
+          <span><span class="sw" style="border-color:var(--red)"></span>measured FPR</span>
+          <span><span class="sw dash" style="border-color:var(--red)"></span>Eq. 2 bound</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Attack detection vs W</h3>
+        <svg id="det" viewBox="0 0 380 240" role="img" aria-label="Detection vs window"></svg>
+        <div class="legend">
+          <span><span class="sw" style="border-color:var(--blue)"></span>measured detection</span>
+          <span><span class="sw dash" style="border-color:var(--blue)"></span>Eq. 3 lower bound</span>
+        </div>
+      </div>
+    </div>
+    <p class="note">Data: <code>docs/research/sweep-results.json</code>. μ<sub>b</sub>=0.578, σ<sub>b</sub>=0.113, μ<sub>a</sub>=0.692, σ<sub>a</sub>=0.072.</p>
+  </section>
+
+  <section class="fig">
+    <h2>Figure 2 — The asymmetry: per-message defense cost</h2>
+    <p class="cap">ADM's per-action detection is an embedding + cosine + O(1) window update — <b>no model inference</b>. A per-message LLM guard (Llama Guard) pays a full 8B forward pass per message. On a log axis the gap is <b>3–4 orders of magnitude</b> — the asymmetry ratio α that lets a streaming defense win the throughput race under automated adversaries.</p>
+    <svg id="asym" viewBox="0 0 900 220" role="img" aria-label="Per-message latency comparison"></svg>
+    <p class="note">ADM values measured (<code>./cmd/latency</code>); Llama Guard is a hosted-inference reference band — run <code>./cmd/baseline</code> with a Groq key to replace it with your measured number.</p>
+  </section>
+
+  <footer>
+    Reproduce: <code style="font-family:var(--mono)">go run ./cmd/sweep</code> · <code style="font-family:var(--mono)">go run ./cmd/latency</code> · <code style="font-family:var(--mono)">go run ./cmd/ablation</code>. Formalization in <code>docs/research/</code>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ---- embedded measured data (from cmd/sweep -json, seed 1337) ----------------
+const SWEEP = [
+  {w:1,  mf:.3796, pf:.8805, md:.764,  pd:.264},
+  {w:2,  mf:.2639, pf:.7752, md:.854,  pd:.458},
+  {w:3,  mf:.1898, pf:.6825, md:.903,  pd:.601},
+  {w:4,  mf:.1435, pf:.6009, md:.935,  pd:.706},
+  {w:6,  mf:.0926, pf:.4658, md:.974,  pd:.841},
+  {w:8,  mf:.0602, pf:.3611, md:.988,  pd:.914},
+  {w:12, mf:.0370, pf:.2170, md:.997,  pd:.975},
+  {w:16, mf:.0046, pf:.1304, md:1.0,   pd:.993},
+  {w:24, mf:0,     pf:.0471, md:1.0,   pd:.9994},
+  {w:32, mf:0,     pf:.0170, md:1.0,   pd:.9999},
+];
+// per-message latency in ms (ADM measured; LG reference band)
+const LAT = [
+  {name:"ADM drift · per-observation", ms:0.0082, c:"aqua", measured:true},
+  {name:"ADM drift · time-to-flag",    ms:0.033,  c:"blue", measured:true},
+  {name:"Llama Guard · 8B inference (ref.)", ms:200, c:"red", measured:false},
+];
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS = "http://www.w3.org/2000/svg";
+function el(t, a){ const e=document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); return e; }
+
+// ---- line chart (log or linear y) --------------------------------------------
+function lineChart(id, key1, key2, color, logY, y1label){
+  const svg = document.getElementById(id); svg.textContent="";
+  const W=380,H=240, L=46,R=12,T=12,B=34;
+  const xs = SWEEP.map(p=>p.w);
+  const xmax = Math.max(...xs);
+  const xpos = w => L + (Math.log(w)/Math.log(xmax))*(W-L-R);
+  let ypos;
+  if(logY){ const lo=Math.log10(0.0002), hi=Math.log10(1);
+    ypos = v => T + (1-(Math.log10(Math.max(v,0.0002))-lo)/(hi-lo))*(H-T-B);
+  } else { ypos = v => T + (1-v)*(H-T-B); }
+
+  // gridlines + y ticks
+  const yticks = logY ? [1,0.1,0.01,0.001] : [0,0.25,0.5,0.75,1];
+  yticks.forEach(v=>{
+    const y=ypos(v);
+    svg.appendChild(el("line",{x1:L,y1:y,x2:W-R,y2:y,class:"grid"}));
+    svg.appendChild(el("text",{x:L-6,y:y+3,"text-anchor":"end",class:"tick"})).textContent =
+      logY ? (v>=1?"100%":v>=0.01?(v*100)+"%":(v*100).toFixed(1)+"%") : (v*100)+"%";
+  });
+  // x ticks
+  [1,2,4,8,16,32].forEach(w=>{
+    const x=xpos(w);
+    svg.appendChild(el("text",{x:x,y:H-B+16,"text-anchor":"middle",class:"tick"})).textContent=w;
+  });
+  svg.appendChild(el("text",{x:(L+W-R)/2,y:H-2,"text-anchor":"middle",class:"alab"})).textContent="window W";
+  // axes
+  svg.appendChild(el("line",{x1:L,y1:T,x2:L,y2:H-B,class:"axis"}));
+  svg.appendChild(el("line",{x1:L,y1:H-B,x2:W-R,y2:H-B,class:"axis"}));
+
+  const path = (key,dash)=>{
+    const d = SWEEP.map((p,i)=>(i?"L":"M")+xpos(p.w).toFixed(1)+" "+ypos(p[key]).toFixed(1)).join(" ");
+    const pe = el("path",{d,fill:"none",stroke:css(color),"stroke-width":dash?1.6:2.4});
+    if(dash) pe.setAttribute("stroke-dasharray","5 4");
+    svg.appendChild(pe);
+  };
+  path(key2,true);  // predicted (dashed, under)
+  path(key1,false); // measured (solid, over)
+  // measured markers
+  SWEEP.forEach(p=> svg.appendChild(el("circle",{cx:xpos(p.w),cy:ypos(p[key1]),r:3,fill:css(color),stroke:css("--surface"),"stroke-width":1.5})));
+}
+
+// ---- horizontal log bar chart (asymmetry) ------------------------------------
+function asymChart(){
+  const svg=document.getElementById("asym"); svg.textContent="";
+  const W=900,H=220, L=250,R=90,T=18,B=40, rowH=48;
+  const lo=Math.log10(0.005), hi=Math.log10(400);
+  const xpos = ms => L + (Math.log10(ms)-lo)/(hi-lo)*(W-L-R);
+  // x gridlines at decades
+  [0.01,0.1,1,10,100].forEach(v=>{
+    const x=xpos(v);
+    svg.appendChild(el("line",{x1:x,y1:T,x2:x,y2:T+LAT.length*rowH,class:"grid"}));
+    svg.appendChild(el("text",{x:x,y:T+LAT.length*rowH+16,"text-anchor":"middle",class:"tick"}))
+      .textContent = v>=1?v+"ms":(v*1000)+"µs";
+  });
+  svg.appendChild(el("text",{x:(L+W-R)/2,y:H-4,"text-anchor":"middle",class:"alab"})).textContent="per-message latency (log scale)";
+  LAT.forEach((d,i)=>{
+    const y=T+i*rowH+8, h=rowH-20;
+    const x=xpos(d.ms);
+    svg.appendChild(el("rect",{x:L,y:y,width:Math.max(2,x-L),height:h,rx:4,
+      fill:css("--"+d.c),opacity:d.measured?0.95:0.5}));
+    if(!d.measured) svg.lastChild.setAttribute("stroke-dasharray","6 4"),
+      svg.lastChild.setAttribute("stroke",css("--"+d.c)), svg.lastChild.setAttribute("fill-opacity","0.28");
+    svg.appendChild(el("text",{x:L-12,y:y+h/2+4,"text-anchor":"end",class:"barcat"})).textContent=d.name;
+    const lab = d.ms>=1? d.ms+" ms" : (d.ms*1000).toFixed(1)+" µs";
+    svg.appendChild(el("text",{x:x+8,y:y+h/2+4,class:"barlab"})).textContent=lab;
+  });
+  // α annotation
+  const aY=T+LAT.length*rowH-6;
+  svg.appendChild(el("text",{x:W-R,y:T+6,"text-anchor":"end",class:"barlab",fill:css("--red")}))
+    .textContent="α ≈ 6,000–24,000×";
+}
+
+function drawAll(){
+  lineChart("fpr","mf","pf","--red",true);
+  lineChart("det","md","pd","--blue",false);
+  asymChart();
+}
+document.getElementById("themebtn").addEventListener("click",()=>{
+  const r=document.documentElement;
+  const cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  r.setAttribute("data-theme",cur==="dark"?"light":"dark"); drawAll();
+});
+drawAll();
+</script>

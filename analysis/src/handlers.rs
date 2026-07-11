@@ -351,26 +351,37 @@ pub async fn latency(State(st): State<Arc<AppState>>) -> impl IntoResponse {
     }
 }
 
-/// Percentile summary of latency_ms over the battle_events rows matching `pred`.
+/// The quantile grid returned as a CDF so the dashboard/figures can draw a curve,
+/// not just three points.
+const CDF_QS: [f64; 9] = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99, 1.0];
+
+/// Percentile summary + CDF of latency_ms over the battle_events rows matching
+/// `pred`. Returns p50/p95/p99 for the headline plus a `cdf` array of {q, ms}.
 async fn latency_dist(st: &Arc<AppState>, pred: &str) -> Result<serde_json::Value, sqlx::Error> {
     let sql = format!(
         "SELECT \
            COUNT(*) AS n, \
            COALESCE(MIN(latency_ms),0) AS min, \
-           COALESCE(percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms),0) AS p50, \
-           COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms),0) AS p95, \
-           COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY latency_ms),0) AS p99, \
            COALESCE(MAX(latency_ms),0) AS max, \
-           COALESCE(AVG(latency_ms),0) AS mean \
+           COALESCE(AVG(latency_ms),0) AS mean, \
+           COALESCE(percentile_cont($1) WITHIN GROUP (ORDER BY latency_ms), ARRAY[]::double precision[]) AS qs \
          FROM battle_events WHERE {pred}"
     );
-    let row = sqlx::query_as::<_, (i64, i64, f64, f64, f64, i64, f64)>(&sql)
+    let row = sqlx::query_as::<_, (i64, i64, i64, f64, Vec<f64>)>(&sql)
+        .bind(&CDF_QS[..])
         .fetch_one(&st.pool)
         .await?;
-    let (n, min, p50, p95, p99, max, mean) = row;
+    let (n, min, max, mean, qs) = row;
+    let q = |i: usize| qs.get(i).copied().unwrap_or(0.0);
+    let cdf: Vec<_> = CDF_QS
+        .iter()
+        .enumerate()
+        .map(|(i, &p)| json!({ "q": p, "ms": q(i) }))
+        .collect();
     Ok(json!({
-        "count": n, "min_ms": min, "p50_ms": p50, "p95_ms": p95,
-        "p99_ms": p99, "max_ms": max, "mean_ms": mean
+        "count": n, "min_ms": min, "max_ms": max, "mean_ms": mean,
+        "p50_ms": q(3), "p95_ms": q(6), "p99_ms": q(7),
+        "cdf": cdf
     }))
 }
 

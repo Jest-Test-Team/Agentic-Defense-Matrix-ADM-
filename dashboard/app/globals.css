@@ -52,6 +52,8 @@ header.top {
   transition: filter .12s;
 }
 .navlink:hover { filter: brightness(1.1); text-decoration: none; }
+.navlink.ghost { margin-left: 8px; color: var(--ink-2); background: transparent; border-color: var(--line); }
+.navlink.ghost:hover { border-color: var(--blue); color: var(--ink); filter: none; }
 
 /* search page */
 .searchbar { display: flex; gap: 8px; margin-top: 18px; }

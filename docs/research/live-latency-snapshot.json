@@ -1,8 +1,8 @@
 {
-  "source": "https://api.dennisleehappy.org/api/events?limit=1000",
-  "snapshot_utc": "2026-07-11T08:41:34Z",
-  "note": "Live from the running OCI battle. delta = attack blocked/detected latency_ms (end-to-end, boundary block is fast; LLM-reaching attacks add ~12s under the Groq free-tier throttle). kappa = remediation latency_ms (orchestrated: green-team poll + HTTP revoke + Docker container restart) — NOT the raw kill primitive (that is cmd/latency's 0.5ms).",
+  "source": "https://api.dennisleehappy.org/api/latency",
+  "snapshot_utc": "2026-07-11T08:50Z",
+  "note": "Full-history CDF from the deployed /api/latency endpoint. delta = attack blocked/detected latency_ms (bimodal: boundary block ~ms; LLM-reaching attacks add ~11s under the Groq free-tier throttle). kappa = remediation latency_ms (orchestrated: green-team poll + HTTP revoke + Docker container restart) — NOT the raw kill primitive (cmd/latency measures that at 0.5ms).",
   "quantiles": [0.05,0.10,0.25,0.50,0.75,0.90,0.95,0.99,1.0],
-  "delta_ms": {"n": 424, "cdf": [0.0,0.0,0.0,12.0,11500.0,11792.0,11897.0,12278.0,12484.0], "p50": 12.0, "p95": 11897.0, "p99": 12278.0},
-  "kappa_ms": {"n": 245, "cdf": [9829.0,9955.0,10170.0,10378.0,10579.0,10855.0,11194.0,12756.0,12862.0], "p50": 10378.0, "p95": 11194.0, "p99": 12756.0}
+  "delta_ms": {"n": 21238, "cdf": [0.0,0.0,0.0,62.5,5456.0,5512.0,11301.0,11805.0,12899.0], "p50": 62.5, "p95": 11301.0, "p99": 11805.0},
+  "kappa_ms": {"n": 2387, "cdf": [9878.3,10060.0,10265.0,10491.0,10811.5,11269.8,12007.8,18492.0,26344.0], "p50": 10491.0, "p95": 12007.8, "p99": 18492.0}
 }

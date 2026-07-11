@@ -110,7 +110,7 @@
 
   <section class="fig">
     <h2>Figure 4 — Live δ/κ from the running OCI battle</h2>
-    <p class="cap">CDFs measured on the <b>deployed</b> system (snapshot 2026-07-11, n=424 blocked attacks, n=245 remediations from <code style="font-family:var(--mono)">/api/events</code>). <b>δ</b> is bimodal: most attacks are blocked at the boundary in <b>~12 ms</b> (p50), with a tail near 12 s for the few that reach the throttled hosted LLM. <b>κ</b> here is the <b>fully orchestrated</b> containment (green-team poll → HTTP revoke → <b>Docker container restart</b>), p50 ≈ 10.4 s — three orders above the raw kill <i>primitive</i> in Figure/harness (509 µs). The gap is the research point: <b>the mechanism is cheap; the latency lives in orchestration</b> (polling + restart), which event-driven kill would collapse.</p>
+    <p class="cap">Full-history CDFs from the <b>deployed</b> <code style="font-family:var(--mono)">/api/latency</code> endpoint (n=21,238 blocked attacks, n=2,387 remediations). <b>δ</b> is bimodal: most attacks are blocked at the boundary in <b>~63 ms</b> (p50), with a tail near 12 s for the few that reach the throttled hosted LLM. <b>κ</b> here is the <b>fully orchestrated</b> containment (green-team poll → HTTP revoke → <b>Docker container restart</b>), p50 ≈ 10.5 s — four orders above the raw kill <i>primitive</i> measured in the harness (509 µs). The gap is the research point: <b>the mechanism is cheap; the latency lives in orchestration</b> (polling + restart), which event-driven kill would collapse.</p>
     <svg id="live" viewBox="0 0 720 300" role="img" aria-label="Live delta and kappa CDFs"></svg>
     <div class="legend">
       <span><span class="sw" style="border-color:var(--blue)"></span>δ detection (boundary block)</span>
@@ -146,10 +146,11 @@ const LAT = [
   {name:"Llama Guard · 8B inference (ref.)", ms:200, c:"red", measured:false},
 ];
 // Live δ/κ CDFs from the running OCI battle (docs/research/live-latency-snapshot.json)
+// full-history CDF from GET /api/latency (n_δ=21,238, n_κ=2,387)
 const LIVE = {
   qs:[.05,.10,.25,.50,.75,.90,.95,.99,1.0],
-  delta:[0,0,0,12,11500,11792,11897,12278,12484],
-  kappa:[9829,9955,10170,10378,10579,10855,11194,12756,12862],
+  delta:[0,0,0,62.5,5456,5512,11301,11805,12899],
+  kappa:[9878,10060,10265,10491,10812,11270,12008,18492,26344],
 };
 // CPU overhead % vs event rate (from cmd/overhead)
 const OVH = [
@@ -308,8 +309,8 @@ function liveCDF(){
   curve(LIVE.delta,"--blue");
   curve(LIVE.kappa,"--violet");
   // p50 markers
-  svg.appendChild(el("text",{x:xpos(12)+4,y:ypos(.5)-6,class:"barlab",fill:css("--blue")})).textContent="δ p50 12ms";
-  svg.appendChild(el("text",{x:xpos(10378)-4,y:ypos(.5)+16,"text-anchor":"end",class:"barlab",fill:css("--violet")})).textContent="κ p50 10.4s";
+  svg.appendChild(el("text",{x:xpos(62.5)+4,y:ypos(.5)-6,class:"barlab",fill:css("--blue")})).textContent="δ p50 63ms";
+  svg.appendChild(el("text",{x:xpos(10491)-4,y:ypos(.5)+16,"text-anchor":"end",class:"barlab",fill:css("--violet")})).textContent="κ p50 10.5s";
 }
 
 function drawAll(){

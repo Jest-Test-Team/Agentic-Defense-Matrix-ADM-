@@ -49,13 +49,13 @@ Two instruments:
 
 ## Live δ/κ from the deployed OCI battle (snapshot 2026-07-11)
 
-Measured on the running system (n=424 blocked attacks, n=245 remediations via
-`/api/events`; see `live-latency-snapshot.json` and Figure 4 in `figures.html`):
+Full history from the deployed `GET /api/latency` endpoint (n=21,238 blocked
+attacks, n=2,387 remediations; see `live-latency-snapshot.json` and Figure 4):
 
 | quantity | live p50 | live p95 | live p99 | harness p50 |
 |---|--:|--:|--:|--:|
-| δ detection (boundary block) | **12 ms** | 11.9 s | 12.3 s | 33 µs (compute) |
-| κ containment (orchestrated) | **10.4 s** | 11.2 s | 12.8 s | 0.5 ms (kill primitive) |
+| δ detection (boundary block) | **63 ms** | 11.3 s | 11.8 s | 33 µs (compute) |
+| κ containment (orchestrated) | **10.5 s** | 12.0 s | 18.5 s | 0.5 ms (kill primitive) |
 
 **The finding.** δ is bimodal — most attacks are blocked at the boundary in
 milliseconds, but the few that reach the throttled hosted LLM add ~12 s (the Groq

@@ -71,7 +71,13 @@ jobs:
           cd /opt/adm/repo
           # Hard-sync to origin/main so the compose files carry the fallback env.
           # battle.env lives outside the repo, so this never touches secrets.
-          git fetch --all -q && git reset --hard origin/main -q
+          git config --global --add safe.directory /opt/adm/repo 2>/dev/null || true
+          echo "== git remote/branch/HEAD before sync =="
+          git remote -v | head -1; git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+          git fetch --all -q || echo "FETCH FAILED"
+          git reset --hard origin/main || echo "RESET FAILED"
+          echo "HEAD after sync: $(git rev-parse HEAD)"
+          echo "compose lines 24-33 after sync:"; sed -n '24,33p' deploy/docker-compose.battle.yml
           set -a; . "$ENVF"; set +a
           # pull the fallback-aware images (LLM failover + /api/llm) then recreate
           docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml \

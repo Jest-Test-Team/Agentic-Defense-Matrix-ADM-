@@ -52,7 +52,33 @@ impl Watchdog {
         // Start telemetry export
         self.telemetry.start_export_loop().await;
 
+        // Lightweight TCP liveness endpoint so the analysis engine / Docker
+        // healthcheck can see the daemon is up (the gateway channel is a Unix
+        // socket, which isn't reachable across the container network).
+        Self::spawn_health_server();
+
         self.listen_for_gateway().await
+    }
+
+    /// Bind a tiny TCP server that replies "ok" to any connection. Address comes
+    /// from ADM_WATCHDOG_HEALTH_ADDR (default 0.0.0.0:9084).
+    fn spawn_health_server() {
+        let addr =
+            std::env::var("ADM_WATCHDOG_HEALTH_ADDR").unwrap_or_else(|_| "0.0.0.0:9084".to_string());
+        tokio::spawn(async move {
+            match tokio::net::TcpListener::bind(&addr).await {
+                Ok(listener) => {
+                    info!("watchdog health listener on {}", addr);
+                    loop {
+                        if let Ok((mut stream, _)) = listener.accept().await {
+                            use tokio::io::AsyncWriteExt;
+                            let _ = stream.write_all(b"ok\n").await;
+                        }
+                    }
+                }
+                Err(e) => error!("health listener bind {} failed: {}", addr, e),
+            }
+        });
     }
 
     #[cfg(unix)]
@@ -161,6 +187,18 @@ async fn handle_connection(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Docker healthcheck path: `adm-watchdog --health` probes the TCP liveness
+    // port and exits 0/1 instead of starting the daemon.
+    if std::env::args().any(|a| a == "--health") {
+        let addr = std::env::var("ADM_WATCHDOG_HEALTH_ADDR")
+            .unwrap_or_else(|_| "127.0.0.1:9084".to_string())
+            .replace("0.0.0.0", "127.0.0.1");
+        std::process::exit(match std::net::TcpStream::connect(&addr) {
+            Ok(_) => 0,
+            Err(_) => 1,
+        });
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

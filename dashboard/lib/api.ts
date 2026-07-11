@@ -78,6 +78,7 @@ export interface SystemService {
   category: string;
   detail: string;
   status: "up" | "down" | "disabled";
+  hint?: string | null;
 }
 
 export interface LlmProvider {

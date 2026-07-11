@@ -25,6 +25,10 @@ enum Probe {
     Http(&'static str),
     /// TCP connect to host:port.
     Tcp(&'static str),
+    /// TCP connect to host:port taken from an env var (falling back to a
+    /// default) — used for the host-networked watchdog, whose address differs
+    /// between the bridge and host-network deployments.
+    TcpEnv(&'static str, &'static str),
     /// SELECT 1 against Postgres.
     Db,
     /// Elasticsearch enabled + reachable.
@@ -44,25 +48,28 @@ struct Svc {
     /// Optional components are "disabled" (not "down") when unreachable —
     /// otel/watchdog/control-plane are dropped on the 1 GB micro.
     optional: bool,
+    /// Extra context shown in the dashboard detail view (e.g. why a component
+    /// is host-only or how to enable it). None for the always-on core services.
+    hint: Option<&'static str>,
 }
 
 fn catalog() -> Vec<Svc> {
     use Probe::*;
     vec![
-        Svc { name: "API Gateway", tech: "Go (Echo)", category: "Edge", detail: "Request interception, semantic analysis, routing", probe: Http("http://gateway:8080/v1/health"), optional: false },
-        Svc { name: "Analysis Engine", tech: "Rust (axum)", category: "Edge", detail: "Battle event ingest, scoring, dashboard API", probe: SelfUp, optional: false },
-        Svc { name: "SIEM Engine", tech: "Go", category: "Detection", detail: "Correlation engine + Redis streams", probe: Http("http://siem:9091/health"), optional: false },
-        Svc { name: "Policy Engine", tech: "OPA", category: "Detection", detail: "Rego authorization decisions", probe: Http("http://policy:8181/health"), optional: false },
-        Svc { name: "Planner Agent", tech: "Go + gRPC", category: "Agents", detail: "Task decomposition", probe: Http("http://planner:9081/health"), optional: false },
-        Svc { name: "Executor Agent", tech: "Go + gRPC", category: "Agents", detail: "Tool execution (Docker API)", probe: Http("http://executor:9082/health"), optional: false },
-        Svc { name: "Summarizer Agent", tech: "Go + gRPC", category: "Agents", detail: "Response summarization", probe: Http("http://summarizer:9083/health"), optional: false },
-        Svc { name: "LLM Backend", tech: "Groq → X.AI", category: "Agents", detail: "Chat-completion inference (Groq primary, X.AI fallback)", probe: Llm, optional: false },
-        Svc { name: "Sandboxing", tech: "Docker API", category: "Runtime", detail: "Ephemeral per-agent containers (via executor)", probe: Http("http://executor:9082/health"), optional: false },
-        Svc { name: "Storage", tech: "Redis 7", category: "Runtime", detail: "SIEM hot path + session store", probe: Tcp("redis:6379"), optional: false },
-        Svc { name: "Durable Log", tech: "Neon Postgres", category: "Data", detail: "Retained battle-event log", probe: Db, optional: false },
-        Svc { name: "Search / Aggregation", tech: "Elasticsearch", category: "Data", detail: "Full-text + aggregation index", probe: Elastic, optional: true },
-        Svc { name: "Observability", tech: "OpenTelemetry", category: "Ops", detail: "Traces, metrics, logs", probe: Http("http://otel-collector:13133/"), optional: true },
-        Svc { name: "Endpoint Watchdog", tech: "Rust", category: "Ops", detail: "macOS ES / Windows WFP syscall interception", probe: Tcp("watchdog:0"), optional: true },
+        Svc { name: "API Gateway", tech: "Go (Echo)", category: "Edge", detail: "Request interception, semantic analysis, routing", probe: Http("http://gateway:8080/v1/health"), optional: false, hint: None },
+        Svc { name: "Analysis Engine", tech: "Rust (axum)", category: "Edge", detail: "Battle event ingest, scoring, dashboard API", probe: SelfUp, optional: false, hint: None },
+        Svc { name: "SIEM Engine", tech: "Go", category: "Detection", detail: "Correlation engine + Redis streams", probe: Http("http://siem:9091/health"), optional: false, hint: None },
+        Svc { name: "Policy Engine", tech: "OPA", category: "Detection", detail: "Rego authorization decisions", probe: Http("http://policy:8181/health"), optional: false, hint: None },
+        Svc { name: "Planner Agent", tech: "Go + gRPC", category: "Agents", detail: "Task decomposition", probe: Http("http://planner:9081/health"), optional: false, hint: None },
+        Svc { name: "Executor Agent", tech: "Go + gRPC", category: "Agents", detail: "Tool execution (Docker API)", probe: Http("http://executor:9082/health"), optional: false, hint: None },
+        Svc { name: "Summarizer Agent", tech: "Go + gRPC", category: "Agents", detail: "Response summarization", probe: Http("http://summarizer:9083/health"), optional: false, hint: None },
+        Svc { name: "LLM Backend", tech: "Groq → X.AI", category: "Agents", detail: "Chat-completion inference (Groq primary, X.AI fallback)", probe: Llm, optional: false, hint: None },
+        Svc { name: "Sandboxing", tech: "Docker API", category: "Runtime", detail: "Ephemeral per-agent containers (via executor)", probe: Http("http://executor:9082/health"), optional: false, hint: None },
+        Svc { name: "Storage", tech: "Redis 7", category: "Runtime", detail: "SIEM hot path + session store", probe: Tcp("redis:6379"), optional: false, hint: None },
+        Svc { name: "Durable Log", tech: "Neon Postgres", category: "Data", detail: "Retained battle-event log", probe: Db, optional: false, hint: None },
+        Svc { name: "Search / Aggregation", tech: "Elasticsearch", category: "Data", detail: "Full-text + aggregation index", probe: Elastic, optional: true, hint: Some("Optional. Set ELASTIC_URL (e.g. a free Bonsai cluster) to enable full-text search + aggregation; the durable log in Postgres works without it.") },
+        Svc { name: "Observability", tech: "OpenTelemetry", category: "Ops", detail: "Traces, metrics, logs", probe: Http("http://otel-collector:13133/"), optional: true, hint: Some("Off by default — the collector doesn't fit the 1 GB micro. Enable with ADM_ENABLE_OTEL=true and re-run battle-up.sh (recommended on an A1 / 12 GB box). Every service already exports OTLP to it.") },
+        Svc { name: "Endpoint Watchdog", tech: "Rust", category: "Ops", detail: "Host agent: macOS EndpointSecurity / Windows WFP syscall interception", probe: TcpEnv("ADM_WATCHDOG_ADDR", "watchdog:9084"), optional: true, hint: Some("Host-only. It runs ON the protected macOS/Windows endpoint (host network + syscall hooks), not as a cloud service — so it reads 'disabled' on the Linux box. Run adm-watchdog on your endpoint, or enable a demo container on A1 with ADM_ENABLE_WATCHDOG=true.") },
     ]
 }
 
@@ -80,12 +87,16 @@ pub async fn system(State(st): State<Arc<AppState>>) -> impl IntoResponse {
                 Probe::SelfUp => true,
                 Probe::Http(url) => http.get(*url).send().await.map(|r| r.status().as_u16() < 400).unwrap_or(false),
                 Probe::Tcp(hp) => tokio::time::timeout(std::time::Duration::from_secs(2), tokio::net::TcpStream::connect(*hp)).await.map(|r| r.is_ok()).unwrap_or(false),
+                Probe::TcpEnv(var, default) => {
+                    let hp = std::env::var(var).unwrap_or_else(|_| (*default).to_string());
+                    tokio::time::timeout(std::time::Duration::from_secs(2), tokio::net::TcpStream::connect(hp)).await.map(|r| r.is_ok()).unwrap_or(false)
+                }
                 Probe::Db => sqlx::query("SELECT 1").execute(&st.pool).await.is_ok(),
                 Probe::Elastic => st.elastic.enabled(),
                 Probe::Llm => probe_llm(&http).await,
             };
             let status = if up { "up" } else if s.optional { "disabled" } else { "down" };
-            json!({ "name": s.name, "tech": s.tech, "category": s.category, "detail": s.detail, "status": status })
+            json!({ "name": s.name, "tech": s.tech, "category": s.category, "detail": s.detail, "status": status, "hint": s.hint })
         }
     }))
     .await;

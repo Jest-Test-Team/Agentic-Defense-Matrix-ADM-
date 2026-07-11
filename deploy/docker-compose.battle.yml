@@ -29,7 +29,12 @@ services:
       - ADM_LLM_API_KEY=${ADM_LLM_API_KEY:-}
       - ADM_LLM_FALLBACK_BASE_URL=${ADM_LLM_FALLBACK_BASE_URL:-}
       - ADM_LLM_FALLBACK_API_KEY=${ADM_LLM_FALLBACK_API_KEY:-}
+      # Endpoint Watchdog runs on the host network, so reach its TCP health port
+      # via the docker host gateway rather than a service name.
+      - ADM_WATCHDOG_ADDR=${ADM_WATCHDOG_ADDR:-host.docker.internal:9084}
       - RUST_LOG=info
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     networks:
       - adm-internal

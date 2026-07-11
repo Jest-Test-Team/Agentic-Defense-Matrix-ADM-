@@ -33,6 +33,8 @@ export interface Dict {
   detailsTitle: string;
   close: string;
   clickHint: string;
+  hostOnly: string;
+  enableHint: string;
   category: string;
   technology: string;
   statusLabel: string;
@@ -118,6 +120,8 @@ export const translations: Record<Lang, Dict> = {
     detailsTitle: "Details",
     close: "Close",
     clickHint: "click for details",
+    hostOnly: "host-only",
+    enableHint: "enable on A1",
     category: "Category",
     technology: "Technology",
     statusLabel: "Status",
@@ -204,6 +208,8 @@ export const translations: Record<Lang, Dict> = {
     detailsTitle: "詳細資訊",
     close: "關閉",
     clickHint: "點擊查看詳情",
+    hostOnly: "僅限主機端",
+    enableHint: "可於 A1 啟用",
     category: "分類",
     technology: "技術",
     statusLabel: "狀態",

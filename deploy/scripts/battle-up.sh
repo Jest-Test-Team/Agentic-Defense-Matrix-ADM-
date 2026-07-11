@@ -59,12 +59,20 @@ if [[ "$LLM_MODE" != "openai" ]]; then
 fi
 if [[ "${ADM_BATTLE_FULL:-false}" == "true" ]]; then
   BASE_SVCS+=(otel-collector control-plane watchdog)
-# Observability alone: opt in with ADM_ENABLE_OTEL=true (recommended only on an
-# A1/12 GB box — the OTel collector doesn't fit alongside the full stack on the
-# 1 GB micro). Guarded so we don't add it twice under ADM_BATTLE_FULL.
-elif [[ "${ADM_ENABLE_OTEL:-false}" == "true" ]]; then
-  BASE_SVCS+=(otel-collector)
-  echo "[battle] ADM_ENABLE_OTEL=true; starting the OpenTelemetry collector (Observability)."
+# Individually opt-in extras (recommended only on an A1/12 GB box — they don't
+# fit alongside the full stack on the 1 GB micro). Guarded so we don't add a
+# duplicate under ADM_BATTLE_FULL.
+else
+  if [[ "${ADM_ENABLE_OTEL:-false}" == "true" ]]; then
+    BASE_SVCS+=(otel-collector)
+    echo "[battle] ADM_ENABLE_OTEL=true; starting the OpenTelemetry collector (Observability)."
+  fi
+  # Endpoint Watchdog is a host agent (host network + syscall hooks); this runs a
+  # demo container so the dashboard's Watchdog card can go green on A1.
+  if [[ "${ADM_ENABLE_WATCHDOG:-false}" == "true" ]]; then
+    BASE_SVCS+=(watchdog)
+    echo "[battle] ADM_ENABLE_WATCHDOG=true; starting the Endpoint Watchdog (host agent)."
+  fi
 fi
 # Front the APIs with Caddy (auto-HTTPS) only when a domain is configured — its
 # A record must already point at this box or Let's Encrypt issuance fails.

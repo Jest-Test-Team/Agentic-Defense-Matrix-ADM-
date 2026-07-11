@@ -321,6 +321,7 @@ function DetailModal({ modal, t, onClose }: { modal: NonNullable<Modal>; t: Dict
               <div className="kv-row"><span className="k">{t.technology}</span><span className="v">{modal.svc.tech}</span></div>
               <div className="kv-row"><span className="k">{t.category}</span><span className="v">{t.cat[modal.svc.category] ?? modal.svc.category}</span></div>
               <p className="modal-detail">{modal.svc.detail}</p>
+              {modal.svc.hint && <div className="modal-hint">{modal.svc.hint}</div>}
             </div>
           ) : modal.rows.length === 0 ? (
             <div className="muted" style={{ padding: "8px 2px" }}>{t.noneYet}</div>

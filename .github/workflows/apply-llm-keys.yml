@@ -79,6 +79,13 @@ jobs:
           docker compose -f docker-compose.yml -f deploy/docker-compose.battle.yml \
             up -d --no-build --force-recreate gateway planner summarizer analysis
           echo "recreated. containers:"; docker ps --format '{{.Names}}\t{{.Status}}'
+          echo "== compose analysis FALLBACK lines =="
+          grep -n "FALLBACK" deploy/docker-compose.battle.yml || echo "(none in compose!)"
+          echo "== battle.env FALLBACK lines (masked) =="
+          grep -E "FALLBACK" "$ENVF" | sed -E "s/(API_KEY=).*/\1<set>/" || echo "(none in env!)"
+          echo "== adm-analysis container ADM_LLM env (masked) =="
+          sleep 4
+          docker exec adm-analysis env 2>/dev/null | grep -E "ADM_LLM" | sed -E "s/(KEY=).*/\1<set>/" || echo "(analysis not up)"
           REMOTE
           } | ssh opc@"$BOX_HOST" 'sudo -E bash -s'
 

@@ -27,7 +27,18 @@ export interface Dict {
   llmPrimary: string;
   llmFallback: string;
   llmActive: string;
+  llmStandby: string;
   llmUnconfigured: string;
+
+  detailsTitle: string;
+  close: string;
+  clickHint: string;
+  category: string;
+  technology: string;
+  statusLabel: string;
+  landedSessions: string;
+  remediatedSessions: string;
+  noneYet: string;
 
   scoreboard: string;
   attacks: string;
@@ -89,7 +100,17 @@ export const translations: Record<Lang, Dict> = {
     llmPrimary: "Primary · Groq",
     llmFallback: "Fallback · X.AI",
     llmActive: "IN USE",
+    llmStandby: "stand-by",
     llmUnconfigured: "not configured",
+    detailsTitle: "Details",
+    close: "Close",
+    clickHint: "click for details",
+    category: "Category",
+    technology: "Technology",
+    statusLabel: "Status",
+    landedSessions: "Attacks that landed (recent)",
+    remediatedSessions: "Remediated sessions (recent)",
+    noneYet: "None in the recent window.",
     cat: { Edge: "Edge", Detection: "Detection", Agents: "Agents", Runtime: "Runtime", Data: "Data", Ops: "Ops" },
 
     scoreboard: "Battle scoreboard",
@@ -152,7 +173,17 @@ export const translations: Record<Lang, Dict> = {
     llmPrimary: "主要 · Groq",
     llmFallback: "備援 · X.AI",
     llmActive: "使用中",
+    llmStandby: "待命中",
     llmUnconfigured: "未設定",
+    detailsTitle: "詳細資訊",
+    close: "關閉",
+    clickHint: "點擊查看詳情",
+    category: "分類",
+    technology: "技術",
+    statusLabel: "狀態",
+    landedSessions: "成功穿透的攻擊（近期）",
+    remediatedSessions: "已修復的工作階段（近期）",
+    noneYet: "近期區間內沒有資料。",
     cat: { Edge: "邊界", Detection: "偵測", Agents: "代理", Runtime: "執行環境", Data: "資料", Ops: "維運" },
 
     scoreboard: "攻防計分板",

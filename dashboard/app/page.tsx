@@ -17,6 +17,11 @@ import { translations, getLang, setLang, type Lang, type Dict } from "@/lib/i18n
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 const CATEGORY_ORDER = ["Edge", "Detection", "Agents", "Runtime", "Data", "Ops"];
 
+type Modal =
+  | { kind: "svc"; svc: SystemService }
+  | { kind: "sessions"; title: string; rows: SessionRow[] }
+  | null;
+
 export default function Page() {
   const [lang, setLangState] = useState<Lang>("en");
   const t = translations[lang];
@@ -30,7 +35,11 @@ export default function Page() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [mixedContent, setMixedContent] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(true);
+  const [modal, setModal] = useState<Modal>(null);
   const esRef = useRef<EventSource | null>(null);
+
+  const landedRows = sessions.filter((s) => s.attack_outcome && s.attack_outcome !== "blocked");
+  const remediatedRows = sessions.filter((s) => s.remediation_outcome);
 
   useEffect(() => {
     setCfg(getConfig());
@@ -160,7 +169,7 @@ export default function Page() {
               <div className="svc-cat">{t.cat[cat] ?? cat}</div>
               <div className="status-grid">
                 {services.filter((s) => s.category === cat).map((s) => (
-                  <ServiceCard key={s.name} svc={s} t={t} />
+                  <ServiceCard key={s.name} svc={s} t={t} onClick={() => setModal({ kind: "svc", svc: s })} />
                 ))}
               </div>
             </div>
@@ -181,10 +190,13 @@ export default function Page() {
           <Tile k={t.attacks} v={stats ? String(stats.attacks) : "–"} cls="red" />
           <Tile k={t.blockRate} v={stats ? pct(stats.block_rate) : "–"} cls="blue" />
           <Tile k={t.detectionRate} v={stats ? pct(stats.detection_rate) : "–"} cls="blue" />
-          <Tile k={t.landed} v={stats ? String(stats.landed) : "–"} cls="red" />
-          <Tile k={t.remediations} v={stats ? String(stats.remediations) : "–"} cls="good" />
+          <Tile k={t.landed} v={stats ? String(stats.landed) : "–"} cls="red"
+                onClick={() => setModal({ kind: "sessions", title: t.landedSessions, rows: landedRows })} hint={t.clickHint} />
+          <Tile k={t.remediations} v={stats ? String(stats.remediations) : "–"} cls="good"
+                onClick={() => setModal({ kind: "sessions", title: t.remediatedSessions, rows: remediatedRows })} hint={t.clickHint} />
           <Tile k={t.mttr} v={stats ? (stats.mttr_seconds == null ? "–" : `${stats.mttr_seconds.toFixed(1)}s`) : "–"} cls="good" />
-          <Tile k={t.residualRisk} v={stats ? String(stats.residual_risk) : "–"} cls="warn" />
+          <Tile k={t.residualRisk} v={stats ? String(stats.residual_risk) : "–"} cls="warn"
+                onClick={() => setModal({ kind: "sessions", title: t.landedSessions, rows: landedRows })} hint={t.clickHint} />
         </div>
 
         <div className="grid2" style={{ marginTop: 20 }}>
@@ -241,16 +253,61 @@ export default function Page() {
 
         <div className="foot-note">{t.footNote}</div>
       </div>
+
+      {modal && <DetailModal modal={modal} t={t} onClose={() => setModal(null)} />}
     </>
   );
 }
 
-function ServiceCard({ svc, t }: { svc: SystemService; t: Dict }) {
+function DetailModal({ modal, t, onClose }: { modal: NonNullable<Modal>; t: Dict; onClose: () => void }) {
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span>{modal.kind === "svc" ? modal.svc.name : modal.title}</span>
+          <button className="modal-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          {modal.kind === "svc" ? (
+            <div className="kv">
+              <div className="kv-row"><span className="k">{t.statusLabel}</span>
+                <span className={`v ${modal.svc.status === "up" ? "good-text" : modal.svc.status === "disabled" ? "warn-text" : "crit-text"}`}>
+                  {modal.svc.status === "up" ? t.svcUp : modal.svc.status === "disabled" ? t.svcDisabled : t.svcDown}
+                </span></div>
+              <div className="kv-row"><span className="k">{t.technology}</span><span className="v">{modal.svc.tech}</span></div>
+              <div className="kv-row"><span className="k">{t.category}</span><span className="v">{t.cat[modal.svc.category] ?? modal.svc.category}</span></div>
+              <p className="modal-detail">{modal.svc.detail}</p>
+            </div>
+          ) : modal.rows.length === 0 ? (
+            <div className="muted" style={{ padding: "8px 2px" }}>{t.noneYet}</div>
+          ) : (
+            <div>
+              {modal.rows.map((s) => (
+                <div className="feed-row" key={s.session_id}>
+                  <span className="tech" style={{ width: 80 }}>{s.technique}</span>
+                  <span className="muted" style={{ width: 90 }}>{s.target || "—"}</span>
+                  <span className={`out ${s.attack_outcome}`}>{s.attack_outcome}</span>
+                  <span className="out">
+                    {s.remediation_outcome
+                      ? `${s.remediation_outcome}${s.mttr_seconds != null ? ` · ${s.mttr_seconds.toFixed(1)}s` : ""}`
+                      : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ServiceCard({ svc, t, onClick }: { svc: SystemService; t: Dict; onClick: () => void }) {
   const cls = svc.status === "up" ? "good" : svc.status === "disabled" ? "warn" : "crit";
   const icon = svc.status === "up" ? "✓" : svc.status === "disabled" ? "○" : "✕";
   const word = svc.status === "up" ? t.svcUp : svc.status === "disabled" ? t.svcDisabled : t.svcDown;
   return (
-    <div className="status-card" title={svc.detail}>
+    <div className="status-card clickable" title={t.clickHint} onClick={onClick}>
       <div className={`pill ${cls}`}>{icon}</div>
       <div className="svc-meta">
         <div className="svc-name">{svc.name} <span className="svc-tech">{svc.tech}</span></div>
@@ -262,9 +319,18 @@ function ServiceCard({ svc, t }: { svc: SystemService; t: Dict }) {
 }
 
 function LlmCard({ p, t }: { p: LlmStatus["providers"][number]; t: Dict }) {
+  // States: in-use (active+up) · stand-by (up, reachable, not active) ·
+  // down (configured but unreachable) · not-configured (no key/url).
+  const standby = p.status === "up" && !p.active;
   const cls = p.status === "up" ? "good" : p.status === "unconfigured" ? "warn" : "crit";
-  const icon = p.status === "up" ? "✓" : p.status === "unconfigured" ? "○" : "✕";
-  const word = p.status === "up" ? t.svcUp : p.status === "unconfigured" ? t.llmUnconfigured : t.svcDown;
+  const icon = p.active ? "▶" : p.status === "up" ? "✓" : p.status === "unconfigured" ? "○" : "✕";
+  const word = p.active
+    ? t.svcUp
+    : standby
+    ? t.llmStandby
+    : p.status === "unconfigured"
+    ? t.llmUnconfigured
+    : t.svcDown;
   const roleLabel = p.role === "primary" ? t.llmPrimary : t.llmFallback;
   return (
     <div className="status-card" title={roleLabel}>
@@ -273,6 +339,7 @@ function LlmCard({ p, t }: { p: LlmStatus["providers"][number]; t: Dict }) {
         <div className="svc-name">
           {p.name} <span className="svc-tech">{roleLabel}</span>
           {p.active && <span className="tag green" style={{ marginLeft: 6 }}>{t.llmActive}</span>}
+          {standby && <span className="tag blue" style={{ marginLeft: 6 }}>{t.llmStandby}</span>}
         </div>
         <div className={`val ${cls}-text`}>{word}</div>
       </div>
@@ -280,26 +347,30 @@ function LlmCard({ p, t }: { p: LlmStatus["providers"][number]; t: Dict }) {
   );
 }
 
-function Tile({ k, v, cls }: { k: string; v: string; cls?: string }) {
+function Tile({ k, v, cls, onClick, hint }: { k: string; v: string; cls?: string; onClick?: () => void; hint?: string }) {
   return (
-    <div className="tile">
+    <div className={`tile ${onClick ? "clickable" : ""}`} onClick={onClick} title={onClick ? hint : undefined}>
       <div className="k">{k}</div>
       <div className={`v ${cls ?? ""}`}>{v}</div>
+      {onClick && <div className="foot">{hint} ›</div>}
     </div>
   );
 }
 
 function TechRow({ name, blocked, landed }: { name: string; blocked: number; landed: number }) {
   const total = Math.max(1, blocked + landed);
+  // A handful of landed hits against thousands blocked is a sub-pixel sliver —
+  // floor any non-zero "landed" to a visible width so breaches never disappear.
+  const landedPct = landed > 0 ? Math.max(6, (landed / total) * 100) : 0;
   return (
     <div className="tech-row">
       <span className="name">{name}</span>
       <span className="bar">
-        <span className="blocked" style={{ width: `${(blocked / total) * 100}%` }} />
-        <span className="landed" style={{ width: `${(landed / total) * 100}%` }} />
+        <span className="blocked" style={{ width: `${100 - landedPct}%` }} />
+        <span className="landed" style={{ width: `${landedPct}%` }} />
       </span>
       <span className="cnt">
-        <b>{blocked}</b> ▏ {landed}
+        <b>{blocked}</b> ▏ <span className={landed > 0 ? "crit-text" : ""}>{landed}</span>
       </span>
     </div>
   );

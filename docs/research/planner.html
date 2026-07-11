@@ -1,0 +1,470 @@
+<style>
+  :root {
+    --paper: #f4f1ea; --surface: #fbf9f4; --surface-2: #efece3;
+    --ink: #1c1a17; --ink-2: #4a4640; --ink-3: #837c70;
+    --line: #d9d3c6; --line-2: #cbc4b4;
+    --claret: #8f2d3b; --claret-soft: #b8656f;
+    --teal: #2b6b66; --teal-soft: #5aa39c;
+    --accent: var(--claret); --accent-soft: var(--claret-soft);
+    --good: #2b6b45; --warn: #9a6a12; --crit: #8f2d3b;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --shadow: 0 1px 2px rgba(28,26,23,.05), 0 8px 30px rgba(28,26,23,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131311; --surface: #1b1a17; --surface-2: #222019;
+      --ink: #ece7dc; --ink-2: #b7b1a3; --ink-3: #837c6d;
+      --line: #2e2b25; --line-2: #3a362e;
+      --claret: #d97b86; --claret-soft: #8f2d3b;
+      --teal: #63b3ab; --teal-soft: #2b6b66;
+      --good: #63b08a; --warn: #d0a24e; --crit: #d97b86;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #131311; --surface: #1b1a17; --surface-2: #222019;
+    --ink: #ece7dc; --ink-2: #b7b1a3; --ink-3: #837c6d;
+    --line: #2e2b25; --line-2: #3a362e;
+    --claret: #d97b86; --claret-soft: #8f2d3b;
+    --teal: #63b3ab; --teal-soft: #2b6b66;
+    --good: #63b08a; --warn: #d0a24e; --crit: #d97b86;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"] {
+    --paper: #f4f1ea; --surface: #fbf9f4; --surface-2: #efece3;
+    --ink: #1c1a17; --ink-2: #4a4640; --ink-3: #837c70;
+    --line: #d9d3c6; --line-2: #cbc4b4;
+    --claret: #8f2d3b; --claret-soft: #b8656f;
+    --teal: #2b6b66; --teal-soft: #5aa39c;
+    --good: #2b6b45; --warn: #9a6a12; --crit: #8f2d3b;
+    --shadow: 0 1px 2px rgba(28,26,23,.05), 0 8px 30px rgba(28,26,23,.07);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
+    line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 72px; }
+
+  /* masthead */
+  .masthead { border-bottom: 2px solid var(--ink); margin-bottom: 4px; padding: 26px 24px 16px; }
+  .masthead-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 6px; }
+  .title { font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 4vw, 40px);
+    line-height: 1.05; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  .title em { font-style: italic; color: var(--accent); }
+  .subtitle { color: var(--ink-2); font-size: 14px; margin: 8px 0 0; max-width: 62ch; }
+  .toggles { display: flex; gap: 8px; flex-shrink: 0; }
+  .toggles button { font-family: var(--mono); font-size: 11px; letter-spacing: .05em;
+    background: var(--surface); color: var(--ink-2); border: 1px solid var(--line-2);
+    border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  .toggles button:hover { border-color: var(--accent); color: var(--ink); }
+  .toggles .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 6px; overflow: hidden; }
+  .toggles .seg button { border: none; border-radius: 0; }
+  .toggles .seg button.on { background: var(--accent); color: #fff; }
+  :root[data-theme="dark"] .toggles .seg button.on { color: #131311; }
+  @media (prefers-color-scheme: dark) { .toggles .seg button.on { color: #131311; } }
+
+  .lede { font-family: var(--serif); font-size: 17px; color: var(--ink-2); max-width: 70ch;
+    margin: 22px 0 30px; line-height: 1.55; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  /* control column */
+  .controls { position: sticky; top: 18px; display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 860px) { .controls { position: static; } }
+  .field-label { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 9px; display: flex; align-items: baseline; gap: 8px; }
+  .field-label .n { color: var(--accent); }
+  .opts { display: flex; flex-direction: column; gap: 7px; }
+  .opt { text-align: left; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 9px; padding: 11px 13px; cursor: pointer; transition: border-color .15s, background .15s;
+    display: flex; flex-direction: column; gap: 2px; }
+  .opt:hover { border-color: var(--line-2); }
+  .opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+  .opt .oname { font-weight: 600; font-size: 13.5px; }
+  .opt .odesc { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); letter-spacing: .01em; }
+  .opt.dim { opacity: .42; cursor: not-allowed; }
+  .opt.dim:hover { border-color: var(--line); }
+
+  /* the generated brief — reads like a preprint page */
+  .brief { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); overflow: hidden; }
+  .brief-head { padding: 22px 26px 18px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--surface)), var(--surface)); }
+  .venue-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .chip { font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; padding: 3px 9px;
+    border-radius: 20px; border: 1px solid var(--line-2); color: var(--ink-2); background: var(--paper); }
+  .chip.accent { border-color: var(--accent); color: var(--accent); }
+  .chip.atlas { border-color: var(--line-2); color: var(--ink-3); }
+  .brief-title { font-family: var(--serif); font-size: clamp(20px, 2.6vw, 27px); font-weight: 600;
+    line-height: 1.14; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  .brief-body { padding: 8px 26px 28px; }
+  section.blk { padding: 20px 0; border-bottom: 1px solid var(--line); }
+  section.blk:last-child { border-bottom: none; }
+  .blk-h { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px; display: flex; align-items: center; gap: 9px; }
+  .blk-h .num { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 5px;
+    background: var(--accent); color: #fff; font-size: 10px; }
+  :root[data-theme="dark"] .blk-h .num { color: #131311; }
+  @media (prefers-color-scheme: dark) { .blk-h .num { color: #131311; } }
+  .blk p { margin: 0 0 10px; color: var(--ink-2); font-size: 14.5px; max-width: 72ch; }
+  .blk p:last-child { margin-bottom: 0; }
+  .blk p b { color: var(--ink); font-weight: 600; }
+  .blk ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .blk li { position: relative; padding-left: 20px; color: var(--ink-2); font-size: 14px; max-width: 72ch; }
+  .blk li::before { content: "▸"; position: absolute; left: 2px; color: var(--accent); font-size: 11px; top: 2px; }
+  .blk li b { color: var(--ink); }
+
+  .math { font-family: var(--mono); background: var(--surface-2); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 15px; font-size: 13px;
+    color: var(--ink); margin: 4px 0 12px; overflow-x: auto; line-height: 1.5; white-space: pre-wrap; }
+  .math .cmt { color: var(--ink-3); }
+  code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); padding: 1px 5px;
+    border-radius: 4px; color: var(--ink); }
+
+  .callout { display: flex; gap: 12px; background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 10px;
+    padding: 13px 15px; margin: 4px 0 0; }
+  .callout .mk { font-family: var(--serif); font-style: italic; font-size: 22px; color: var(--accent); line-height: 1; }
+  .callout p { margin: 0; font-family: var(--serif); font-style: italic; font-size: 14.5px; color: var(--ink); }
+
+  .defense { display: grid; gap: 10px; }
+  .defense .row { background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; }
+  .defense .q { font-weight: 600; font-size: 13.5px; color: var(--ink); margin: 0 0 5px; }
+  .defense .q::before { content: "R — "; font-family: var(--mono); color: var(--crit); font-size: 12px; }
+  .defense .a { font-size: 13.5px; color: var(--ink-2); margin: 0; }
+  .defense .a::before { content: "→ "; color: var(--good); font-weight: 700; }
+
+  footer.note { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--ink-3); font-size: 12.5px; max-width: 74ch; }
+  footer.note code { background: var(--surface-2); }
+  .fade { animation: fade .35s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .fade { animation: none; } }
+  button:focus-visible, .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <p class="eyebrow" id="eyebrow">Research Architecture Planner</p>
+      <h1 class="title" id="mtitle">ADM as a <em>Research Program</em></h1>
+      <p class="subtitle" id="msub"></p>
+    </div>
+    <div class="toggles">
+      <span class="seg" id="langseg">
+        <button data-lang="zh" class="on">中文</button>
+        <button data-lang="en">EN</button>
+      </span>
+      <button id="themebtn" title="theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lede" id="lede"></p>
+
+  <div class="grid">
+    <div class="controls">
+      <div>
+        <p class="field-label"><span class="n">01</span><span id="lbl-module"></span></p>
+        <div class="opts" id="modules"></div>
+      </div>
+      <div>
+        <p class="field-label"><span class="n">02</span><span id="lbl-threat"></span></p>
+        <div class="opts" id="threats"></div>
+      </div>
+      <div>
+        <p class="field-label"><span class="n">03</span><span id="lbl-metric"></span></p>
+        <div class="opts" id="metrics"></div>
+      </div>
+    </div>
+
+    <div class="brief fade" id="brief"></div>
+  </div>
+
+  <footer class="note" id="footnote"></footer>
+</div>
+
+<script>
+"use strict";
+
+// ---- bilingual content model, grounded in docs/research/*.md -----------------
+const L = {
+  zh: {
+    eyebrow: "學術論文架構規劃器",
+    title: 'ADM 作為一個 <em>研究計畫</em>',
+    sub: "選擇模組、核心威脅與優化指標，即時生成研究大綱、理論形式化方向與審稿人防禦策略。",
+    lede: '把工程產物提升為科學貢獻的關鍵，是從 <b>「怎麼做」</b> 轉向 <b>「為什麼成立、理論極限在哪」</b>。審稿人在乎的是新穎的攻擊面、具普適性的防禦範式，以及嚴謹可重複、勝過 SOTA 的實驗證據。',
+    module: "研究模組", threat: "核心威脅（攻擊面）", metric: "優化指標",
+    secTitle: "工作標題", secThesis: "核心研究問題（RQ）", secForm: "理論形式化方向",
+    secBase: "基準對比與關鍵圖表", secDefense: "審稿人防禦策略", secVenue: "貢獻清單",
+    venueFit: "投稿定位", atlas: "威脅對齊",
+    foot: '本規劃器將 ADM 程式碼（<code>pkg/semantic/analyzer.go</code>、<code>cmd/siem_engine/</code>、<code>daemon_watchdog/</code>）系統性地梳理為符合國際安全學術規範的研究架構。完整形式化見 <code>docs/research/</code>。',
+    na: "此指標主要適用於另一個模組——已為你切換到最相關的組合。",
+  },
+  en: {
+    eyebrow: "Academic Paper Architecture Planner",
+    title: 'ADM as a <em>Research Program</em>',
+    sub: "Pick a module, a core threat, and an optimization metric to generate a tailored research outline, formalization direction, and reviewer-defense strategy.",
+    lede: 'Elevating an engineering artifact to a scientific contribution means moving from <b>how it works</b> to <b>why it holds and where the theoretical limits are</b>. Reviewers reward a novel attack surface, a generalizable defense paradigm, and rigorous, reproducible evidence that beats SOTA.',
+    module: "Research module", threat: "Core threat (attack surface)", metric: "Optimization metric",
+    secTitle: "Working title", secThesis: "Core research question (RQ)", secForm: "Formalization direction",
+    secBase: "Baselines & key figure", secDefense: "Reviewer-defense strategy", secVenue: "Contribution checklist",
+    venueFit: "Venue fit", atlas: "Threat alignment",
+    foot: 'This planner reframes the ADM code (<code>pkg/semantic/analyzer.go</code>, <code>cmd/siem_engine/</code>, <code>daemon_watchdog/</code>) into an academically rigorous research architecture. Full formalization in <code>docs/research/</code>.',
+    na: "This metric mainly applies to the other module — switched you to the most relevant pairing.",
+  }
+};
+
+const MODULES = [
+  {
+    id: "c1", accent: "claret",
+    name: { zh: "L7 語意意圖漂移防禦", en: "L7 Semantic Intent-Drift Defense" },
+    desc: { zh: "pkg/semantic · 隨機滑動窗口串流檢測", en: "pkg/semantic · streaming window detection" },
+    venue: { zh: ["ACM AISec（首選）", "USENIX / NDSS（完整系統）"], en: ["ACM AISec (primary)", "USENIX / NDSS (full system)"] },
+    titleTpl: {
+      zh: t => `意圖漂移：在工具呼叫型 LLM Agent 中對「${t}」的非對稱串流檢測`,
+      en: t => `Intent Drift: Asymmetric Streaming Detection of ${t} in Tool-Calling LLM Agents`
+    },
+    thesis: {
+      zh: "防禦自主 Agent 不是對「單一提示詞」的分類問題，而是對「語意軌跡」的控制問題：攻擊是偏離授權流形（authorization manifold）的漂移，單訊息分類器（如 Llama Guard）以 i.i.d. 方式評分無法跨步累積證據。核心 RQ：在窗口大小 W 與閾值 θ 下，窗口漂移統計量 D_t(W) 能否以漸進更低的成本、達到不劣於 SOTA 的偵測率？",
+      en: "Defending an autonomous agent is not classification over single prompts but a control problem on the semantic trajectory: attacks are drifts off an authorization manifold, and i.i.d. per-message classifiers (e.g. Llama Guard) cannot accumulate evidence across steps. Core RQ: under window W and threshold θ, can the windowed drift statistic D_t(W) match SOTA detection at asymptotically lower cost?"
+    },
+    form: {
+      zh: [
+        "將 Agent 的 prompt 輸入與 tool-calling 軌跡形式化為語意流 {z_t=φ(a_t)}；System Prompt 與授權工具空間 T_auth 誘導出核心流形 M。",
+        "偵測操作在「窗口軌跡統計量」而非單訊息上，因此對多步偽裝（multi-step camouflage）具備單訊息分類器所缺的累積偵測力。"
+      ],
+      en: [
+        "Formalize prompt inputs + tool-calling as a semantic stream {z_t=φ(a_t)}; the system prompt and authorized tool space T_auth induce a core manifold M.",
+        "Detection acts on the windowed trajectory statistic, not single messages — giving it the cross-step accumulation power a per-message classifier lacks against multi-step camouflage."
+      ],
+      math: "D_t(W) = (1/W) Σ_{i=t-W+1..t} g( d_M(z_i, C) )   ≥ θ  ⇒ fire\n« 現行 analyzer.go 的關鍵字+頻率偵測 = 此式在 φ=詞彙指示子下的退化特例 »"
+    },
+    baselines: {
+      zh: ["<b>Llama Guard</b>：SOTA 單訊息 LLM 守衛——凸顯「串流/窗口」相對「逐訊息」的增益", "<b>RegEx / 允許清單</b>：古典靜態規則", "<b>逐訊息 embedding 分類器</b>（消融）：把「窗口化」的增益與「embedding」的增益分離", "<b>無防禦對照組</b>"],
+      en: ["<b>Llama Guard</b>: SOTA per-message LLM guard — isolates streaming/windowing vs per-message", "<b>RegEx / allow-list</b>: classic static rules", "<b>Per-message embedding classifier</b> (ablation): separates the windowing gain from the embedding gain", "<b>No-defense control</b>"]
+    },
+    reviewer: {
+      q: { zh: "『語意偵測』不過是換皮的關鍵字比對？", en: "The 'semantic' detector is just keyword matching in disguise?" },
+      a: { zh: "精確承認並重構：貢獻是窗口軌跡統計量 D_t(W) 與非對稱定律，而非 φ 的選擇。把 embedding-φ 變體放在同一介面下作為消融，證明「窗口化」增益在兩種 φ 下都成立；理論界（Eq.2/3）與 φ 無關。", en: "Concede precisely and reframe: the contribution is the windowed statistic D_t(W) and the asymmetry law, not the choice of φ. Present embedding-φ vs keyword-φ as an ablation behind one interface; the theory (Eq. 2/3) is φ-agnostic." }
+    }
+  },
+  {
+    id: "c2", accent: "teal",
+    name: { zh: "執行期非對稱圍堵（SIEM + Rust 沙箱）", en: "Runtime Asymmetric Containment (SIEM + Rust sandbox)" },
+    desc: { zh: "siem_engine · daemon_watchdog · WFP/ES", en: "siem_engine · daemon_watchdog · WFP/ES" },
+    venue: { zh: ["IEEE S&P Workshop（DLS）", "USENIX / NDSS（完整系統）"], en: ["IEEE S&P Workshop (DLS)", "USENIX / NDSS (full system)"] },
+    titleTpl: {
+      zh: t => `圍堵爆炸半徑：以會話綁定與系統級遙測，對「${t}」進行執行期非對稱圍堵`,
+      en: t => `Bounding the Blast Radius: Session-Bound OS-Telemetry Containment of ${t}`
+    },
+    thesis: {
+      zh: "核心 RQ：如何在不破壞 Agent 自主規劃與工具調用能力（autonomy）的前提下，實現即時且代價最小的惡意行為圍堵？這是安全與自主性的權衡——把它當成「權衡的刻畫」而非「阻斷壞事」，才是提升學術層次的關鍵。防禦本質是把可達（可破壞）資源集 R(t) 的成長截斷。",
+      en: "Core RQ: how to achieve immediate, minimal-cost containment without destroying the agent's autonomy (planning + tool use)? This is a safety/autonomy trade-off — characterizing the frontier, not 'blocking bad stuff', is the elevation. Containment is truncation of the reachable (damageable) resource set R(t)."
+    },
+    form: {
+      zh: [
+        "把部署建模為能力圖 G=(V,E)；受損從 t_0 起，可達集 R(t) 隨工具呼叫擴張。爆炸半徑 B(Δ) 以外洩資料的夏農熵加權。",
+        "會話綁定的 OPA 撤銷 + Rust Watchdog（WFP/ES）殺容器/封鎖 egress，凍結 R 於 R(t_d+κ)：把「殺容器」轉化為「收斂速度」結果。"
+      ],
+      en: [
+        "Model the deployment as a capability graph G=(V,E); from t_0 the reachable set R(t) expands via tool calls. Blast radius B(Δ) is entropy-weighted over exfiltrated data.",
+        "Session-bound OPA revocation + Rust Watchdog (WFP/ES) egress kill freezes R at R(t_d+κ): turning 'we kill the container' into a convergence-rate result."
+      ],
+      math: "B(Δ) = w_node·|R(t_0+Δ)| + w_ent·H_exf(t_0+Δ)\n|R(t_d+κ)| ≤ |R(t_0)| + λ·(δ+κ)   « 線性於總反應時間 δ+κ，與時界 Δ 無關 »"
+    },
+    baselines: {
+      zh: ["<b>Kill-on-any-anomaly</b>：低爆炸半徑但摧毀自主性——量化過度圍堵的代價", "<b>Log-only</b>：完整自主但爆炸半徑無界", "<b>靜態 seccomp/AppArmor</b>：非會話感知的基線", "證明 ADM 位於兩者之間的 Pareto 前沿"],
+      en: ["<b>Kill-on-any-anomaly</b>: low blast radius but wrecked autonomy — quantifies over-containment cost", "<b>Log-only</b>: full autonomy, unbounded blast radius", "<b>Static seccomp/AppArmor</b>: non-session-aware baseline", "Show ADM sits on the Pareto frontier between them"]
+    },
+    reviewer: {
+      q: { zh: "OS 級遙測（WFP/ES）在生產環境太重？", en: "OS-level telemetry (WFP/ES) is too heavy for production?" },
+      a: { zh: "Pareto/開銷研究正為此而建：無鎖環形緩衝區 + Redis Streams 在極端事件併發下維持穩態 CPU/記憶體 ≤5%，同時保持微秒—毫秒級圍堵延遲 κ；附無鎖 vs 互斥佇列消融與開銷—事件率曲線。", en: "The Pareto/overhead study is built for this: lock-free ring buffer + Redis Streams hold steady-state CPU/mem ≤5% under extreme concurrency while sustaining micro-to-milli-second containment latency κ; with a lock-free-vs-mutex ablation and overhead-vs-event-rate curve." }
+    }
+  }
+];
+
+const THREATS = [
+  { id:"indirect", mod:["c1"], atlas:"AML.T0051 · OWASP-LLM01",
+    name:{zh:"間接提示詞注入", en:"Indirect prompt injection"},
+    hook:{zh:"注入藏於 RAG／工具輸出中，單一訊息看似無害——正是逐訊息守衛的盲區。", en:"injection hidden in RAG/tool output; each message looks benign — the blind spot of per-message guards."} },
+  { id:"camouflage", mod:["c1"], atlas:"AML.T0051 · multi-turn",
+    name:{zh:"多步偽裝攻擊", en:"Multi-step camouflage"},
+    hook:{zh:"每一步都低於單訊息閾值 τ，但聚合漂移 D_n(W) 超過 θ——證明窗口統計量價值的關鍵案例。", en:"every step below the single-message bar τ, yet aggregate drift D_n(W) exceeds θ — the case that proves the windowed statistic's worth."} },
+  { id:"toolabuse", mod:["c1","c2"], atlas:"OWASP-LLM08",
+    name:{zh:"工具濫用 / 混淆代理", en:"Tool abuse / confused deputy"},
+    hook:{zh:"合法工具被誘導鏈式呼叫（read_secret → external_send），跨越授權流形邊界。", en:"legitimate tools coerced into chains (read_secret → external_send) crossing the authorization boundary."} },
+  { id:"exfil", mod:["c2","c1"], atlas:"AML.T0054",
+    name:{zh:"敏感憑證外洩", en:"Credential exfiltration"},
+    hook:{zh:"外洩量以夏農熵計——直接進入爆炸半徑 B(Δ) 的 H_exf 項。", en:"exfiltration measured in Shannon entropy — feeding the H_exf term of blast radius B(Δ)."} },
+  { id:"revshell", mod:["c2"], atlas:"AML.T0052",
+    name:{zh:"反向 Shell / 容器逃逸", en:"Reverse shell / container escape"},
+    hook:{zh:"OS 級 edge（非授權 socket/process）——只有 WFP/ES 遙測能截斷的可達邊。", en:"OS-level edges (unauthorized sockets/processes) — reachable only cut by WFP/ES telemetry."} },
+  { id:"dos", mod:["c2","c1"], atlas:"OWASP-LLM04",
+    name:{zh:"資源耗盡 / DoS", en:"Resource exhaustion / DoS"},
+    hook:{zh:"自動化高頻探測——非對稱定律 α=o(1) 在此最吃緊：防禦每 token 成本必須遠低於攻擊。", en:"automated high-frequency probing — where the asymmetry law α=o(1) bites hardest: per-token defense cost must be far below attack cost."} },
+];
+
+const METRICS = [
+  { id:"latency", mod:["c1"],
+    name:{zh:"偵測延遲（Mitigation Delay）", en:"Detection latency (mitigation delay)"},
+    figure:{zh:"Mitigation-delay CDF：ADM 較 Llama Guard 左移數個數量級（p50/p95/p99）。", en:"Mitigation-delay CDF: ADM orders-of-magnitude left of Llama Guard (p50/p95/p99)."},
+    focus:{zh:"以非對稱比 α=cost_defense/cost_attack 為核心：ADM 每 token O(1) 攤還 vs Llama Guard 每訊息 Θ(L·d_model)。", en:"Center the asymmetry ratio α=cost_defense/cost_attack: ADM O(1) amortized per token vs Llama Guard Θ(L·d_model) per message."} },
+  { id:"throughput", mod:["c1"],
+    name:{zh:"吞吐量 / Token 成本", en:"Throughput / token cost"},
+    figure:{zh:"固定 SLA 下的吞吐量與 $/1k-req 條形圖：ADM vs 逐訊息 LLM 守衛。", en:"Throughput at fixed SLA and $/1k-req bar chart: ADM vs per-message LLM guard."},
+    focus:{zh:"論證自動化對手下唯有 α=o(1) 的防禦可行；否則吞吐先崩潰。", en:"Argue only α=o(1) defenses are viable under automated adversaries; else throughput collapses first."} },
+  { id:"bounds", mod:["c1"],
+    name:{zh:"FP/FN 理論上下界", en:"FP/FN theoretical bounds"},
+    figure:{zh:"窗口掃描圖：實測 FPR/FNR 疊加 Eq.2/3 的指數衰減預測——理論與實驗吻合的可信度錨點。", en:"Window-sweep: measured FPR/FNR overlaid on the Eq. 2/3 exponential-decay prediction — the credibility anchor."},
+    focus:{zh:"推導 FPR≤exp(−W(θ−μ_b)²/2σ²)、FNR≤exp(−W(μ_a−θ)²/2σ²)，並以 Le Cam 兩點法給出可偵測性資訊下界。", en:"Derive FPR≤exp(−W(θ−μ_b)²/2σ²), FNR≤exp(−W(μ_a−θ)²/2σ²), and a Le-Cam two-point information lower bound on detectability."} },
+  { id:"containment", mod:["c2"],
+    name:{zh:"圍堵延遲 κ", en:"Containment latency κ"},
+    figure:{zh:"端到端 δ、κ 分佈（事件→告警→OPA 撤銷→watchdog 殺）：報分佈而非只報 MTTR。", en:"End-to-end δ, κ distributions (event→alert→OPA flip→watchdog kill): report distributions, not just MTTR."},
+    focus:{zh:"由 Eq.3，B(∞) 線性於 (δ+κ) 且與時界 Δ 無關；縮短 κ 即縮小殘餘損害。", en:"By Eq. 3, B(∞) is linear in (δ+κ) and independent of horizon Δ; shrinking κ shrinks residual damage."} },
+  { id:"overhead", mod:["c2"],
+    name:{zh:"系統開銷（CPU/記憶體）", en:"System overhead (CPU/memory)"},
+    figure:{zh:"Pareto 前沿（安全↔開銷）+ 開銷—事件率曲線，守住 ≤5% 線；無鎖 vs 互斥消融。", en:"Pareto frontier (security↔overhead) + overhead-vs-event-rate holding the ≤5% line; lock-free vs mutex ablation."},
+    focus:{zh:"審稿人必質疑 OS 遙測負載——用 Pareto 圖證明 ADM 支配 naive 基線。", en:"Reviewers will challenge OS-telemetry load — use the Pareto plot to show ADM dominates naive baselines."} },
+  { id:"blast", mod:["c2"],
+    name:{zh:"爆炸半徑 B(Δ)", en:"Blast radius B(Δ)"},
+    figure:{zh:"各 ATLAS 類別的爆炸半徑條形圖：ADM vs log-only vs kill-on-anomaly——頭條指標。", en:"Blast-radius bar chart per ATLAS class: ADM vs log-only vs kill-on-anomaly — the headline metric."},
+    focus:{zh:"提出熵加權可達集作為新的 Agent 威脅度量，並以圍堵定理給出 B 的閉式上界。", en:"Propose entropy-weighted reachable set as a new agent-threat metric, with the containment theorem giving a closed-form upper bound on B."} },
+];
+
+let state = { lang: "zh", module: "c1", threat: "camouflage", metric: "bounds" };
+
+const $ = s => document.querySelector(s);
+function tr(o){ return o[state.lang]; }
+
+function setAccent(mod){
+  const a = mod.accent === "teal" ? "var(--teal)" : "var(--claret)";
+  const s = mod.accent === "teal" ? "var(--teal-soft)" : "var(--claret-soft)";
+  document.documentElement.style.setProperty("--accent", a);
+  document.documentElement.style.setProperty("--accent-soft", s);
+}
+
+function renderControls(){
+  const t = L[state.lang];
+  $("#lbl-module").textContent = t.module;
+  $("#lbl-threat").textContent = t.threat;
+  $("#lbl-metric").textContent = t.metric;
+
+  $("#modules").innerHTML = MODULES.map(m =>
+    `<button class="opt ${state.module===m.id?"on":""}" data-k="module" data-v="${m.id}">
+       <span class="oname">${tr(m.name)}</span><span class="odesc">${tr(m.desc)}</span></button>`).join("");
+
+  $("#threats").innerHTML = THREATS.map(x => {
+    const primary = x.mod[0]===state.module, applies = x.mod.includes(state.module);
+    return `<button class="opt ${state.threat===x.id?"on":""} ${applies?"":"dim"}" data-k="threat" data-v="${x.id}" ${applies?"":"disabled"}>
+       <span class="oname">${tr(x.name)}</span><span class="odesc">${x.atlas}${primary?"":applies?" · 次要":""}</span></button>`;
+  }).join("");
+
+  $("#metrics").innerHTML = METRICS.map(x => {
+    const applies = x.mod.includes(state.module);
+    return `<button class="opt ${state.metric===x.id?"on":""} ${applies?"":"dim"}" data-k="metric" data-v="${x.id}" ${applies?"":"disabled"}>
+       <span class="oname">${tr(x.name)}</span></button>`;
+  }).join("");
+}
+
+function renderBrief(){
+  const t = L[state.lang];
+  const m = MODULES.find(x=>x.id===state.module);
+  const th = THREATS.find(x=>x.id===state.threat);
+  const me = METRICS.find(x=>x.id===state.metric);
+  setAccent(m);
+
+  const title = m.titleTpl[state.lang](tr(th.name));
+  const venue = tr(m.venue).map(v=>`<span class="chip accent">${v}</span>`).join("");
+
+  const el = $("#brief");
+  el.innerHTML = `
+    <div class="brief-head">
+      <div class="venue-row">
+        <span class="chip">${tr(m.name)}</span>
+        <span class="chip atlas">${t.atlas}: ${th.atlas}</span>
+      </div>
+      <h2 class="brief-title">${title}</h2>
+    </div>
+    <div class="brief-body">
+      <section class="blk">
+        <p class="blk-h"><span class="num">1</span>${t.secThesis}</p>
+        <p>${tr(m.thesis)}</p>
+        <div class="callout"><span class="mk">“</span><p>${tr(th.hook)}</p></div>
+      </section>
+
+      <section class="blk">
+        <p class="blk-h"><span class="num">2</span>${t.secForm}</p>
+        ${tr(m.form).map(p=>`<p>${p}</p>`).join("")}
+        <div class="math">${m.form.math.replace(/«/g,'<span class="cmt">«').replace(/»/g,'»</span>')}</div>
+        <p><b>${state.lang==="zh"?"針對本指標的形式化重點":"Formalization focus for this metric"}:</b> ${tr(me.focus)}</p>
+      </section>
+
+      <section class="blk">
+        <p class="blk-h"><span class="num">3</span>${t.secBase}</p>
+        <ul>${tr(m.baselines).map(b=>`<li>${b}</li>`).join("")}</ul>
+        <p style="margin-top:12px"><b>${state.lang==="zh"?"關鍵圖表":"Key figure"} — ${tr(me.name)}:</b> ${tr(me.figure)}</p>
+      </section>
+
+      <section class="blk">
+        <p class="blk-h"><span class="num">4</span>${t.secDefense}</p>
+        <div class="defense">
+          <div class="row"><p class="q">${tr(m.reviewer.q)}</p><p class="a">${tr(m.reviewer.a)}</p></div>
+        </div>
+      </section>
+
+      <section class="blk">
+        <p class="blk-h"><span class="num">5</span>${t.secVenue}</p>
+        <div class="venue-row">${venue}</div>
+      </section>
+    </div>`;
+  el.classList.remove("fade"); void el.offsetWidth; el.classList.add("fade");
+}
+
+function renderStatic(){
+  const t = L[state.lang];
+  $("#eyebrow").textContent = t.eyebrow;
+  $("#mtitle").innerHTML = t.title;
+  $("#msub").textContent = t.sub;
+  $("#lede").innerHTML = t.lede;
+  $("#footnote").innerHTML = t.foot;
+  document.querySelectorAll("#langseg button").forEach(b=>b.classList.toggle("on", b.dataset.lang===state.lang));
+}
+
+function renderAll(){ renderStatic(); renderControls(); renderBrief(); }
+
+document.addEventListener("click", e => {
+  const opt = e.target.closest(".opt[data-k]");
+  if (opt && !opt.disabled){
+    state[opt.dataset.k] = opt.dataset.v;
+    // if switching module, snap threat/metric to a valid one for that module
+    if (opt.dataset.k === "module"){
+      const m = state.module;
+      if (!THREATS.find(x=>x.id===state.threat)?.mod.includes(m))
+        state.threat = THREATS.find(x=>x.mod[0]===m).id;
+      if (!METRICS.find(x=>x.id===state.metric)?.mod.includes(m))
+        state.metric = METRICS.find(x=>x.mod.includes(m)).id;
+    }
+    renderAll();
+  }
+  const lang = e.target.closest("#langseg button");
+  if (lang){ state.lang = lang.dataset.lang; renderAll(); }
+});
+
+$("#themebtn").addEventListener("click", () => {
+  const root = document.documentElement;
+  const cur = root.getAttribute("data-theme")
+    || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+});
+
+renderAll();
+</script>

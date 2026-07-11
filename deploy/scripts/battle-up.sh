@@ -59,6 +59,12 @@ if [[ "$LLM_MODE" != "openai" ]]; then
 fi
 if [[ "${ADM_BATTLE_FULL:-false}" == "true" ]]; then
   BASE_SVCS+=(otel-collector control-plane watchdog)
+# Observability alone: opt in with ADM_ENABLE_OTEL=true (recommended only on an
+# A1/12 GB box — the OTel collector doesn't fit alongside the full stack on the
+# 1 GB micro). Guarded so we don't add it twice under ADM_BATTLE_FULL.
+elif [[ "${ADM_ENABLE_OTEL:-false}" == "true" ]]; then
+  BASE_SVCS+=(otel-collector)
+  echo "[battle] ADM_ENABLE_OTEL=true; starting the OpenTelemetry collector (Observability)."
 fi
 # Front the APIs with Caddy (auto-HTTPS) only when a domain is configured — its
 # A record must already point at this box or Let's Encrypt issuance fails.

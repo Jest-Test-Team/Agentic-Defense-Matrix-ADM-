@@ -91,6 +91,14 @@ and which one is currently serving. Terraform wires this via `xai_api_key`/`xai_
 (secret `XAI_API_KEY`, var `ADM_XAI_MODEL`); the fallback base URL is set to X.AI
 automatically when the key is present.
 
+**Observability (OpenTelemetry).** The collector is **off by default** — it doesn't
+fit alongside the full battle stack on the 1 GB micro. Every service already exports
+OTLP to `otel-collector:4317` (a silent no-op when the collector is absent), so
+enabling it is a single flag: set **`ADM_ENABLE_OTEL=true`** (env or `battle.env`)
+and re-run `battle-up.sh`. The collector's `health_check` extension on `:13133` is
+what the `/api/system` probe checks, so the dashboard's **Observability** card flips
+to *up*. Recommended only on an A1 (12 GB) box; on the micro there's no headroom.
+
 **A1 upgrade path:** the same stack self-hosts Postgres + OpenSearch on-box once
 you move to an A1 shape (2–4 OCPU / 12–24 GB). Terraform now retries across
 availability domains on "Out of host capacity" (§8) so an A1 launch lands as soon

@@ -415,4 +415,3 @@ The dashboard renders these live; the same numbers are queryable from
 - Kibana dashboards on the same Elasticsearch index for deep forensics.
 - ~~Adaptive red team (LLM-guided mutation toward payloads that landed).~~ **done** — see §5 and ADR-008.
 - Move Postgres to OCI Autonomous DB (Always Free) when deploying to cloud.
-```

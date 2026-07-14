@@ -15,21 +15,24 @@ A full red vs. blue vs. green exercise runs continuously on free-tier cloud:
 
 - **Dashboard (realtime):** https://jest-test-team.github.io/Agentic-Defense-Matrix-ADM/
   — every tech-stack component's health, LLM-provider status (Groq → X.AI failover),
-  battle scoreboard with click-through session detail, per-technique breakdown, live
+  battle scoreboard with click-through session detail, **successful attack chains**
+  (adaptive LLM follow-ups + green SOC summaries), per-technique breakdown, live
   event feed (English / 繁體中文). Subpages: **🔎 Search** (full-text Elasticsearch
   over every event) and **🎯 Matrix** (all 10,000 enumerated attack variants).
 - **API (HTTPS):** `https://api.dennisleehappy.org` —
-  `/api/stats`, `/api/timeline`, `/api/stream` (SSE), `/api/system` (per-component
-  health), `/api/llm` (provider status), `/api/latency` (δ/κ distributions),
-  `/api/search`, `/health`, `/ready`.
+  `/api/stats`, `/api/timeline`, `/api/chains`, `/api/stream` (SSE), `/api/system`
+  (per-component health), `/api/llm` (provider status), `/api/latency` (δ/κ
+  distributions), `/api/search`, `/health`, `/ready`.
 
 The red team fires thousands of adversarial prompts and tool-call attempts at the
-gateway; the blue team blocks them at the boundary; the green team remediates any
-that land. Every event is logged to Postgres and scored live. See
+gateway (deterministic corpus; on a landing, optional hosted-LLM adaptive next
+step within an attack chain); the blue team blocks them at the boundary; the green
+team remediates landings with optional LLM triage and a SOC summary. Every event
+is logged to Postgres and scored live. See
 **[Live Deployment — Infrastructure & Services](docs/architecture/live-deployment.md)**
 for the full architecture (OCI micro + Neon + Bonsai + Groq→X.AI + Caddy + GitHub Pages),
-and **[Battle Orchestration](docs/battle-orchestration.md)** for how the exercise
-works.
+and **[Battle Orchestration](docs/battle-orchestration.md)** / **[ADR-008](docs/adr/008-llm-red-green-teams.md)**
+for how the exercise and LLM-assisted red/green paths work.
 
 ### 🎓 From artifact to research
 

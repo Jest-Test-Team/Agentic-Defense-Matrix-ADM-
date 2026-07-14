@@ -29,6 +29,10 @@ are OpenAI-compatible, so no per-provider code. The analysis engine exposes
 `GET /api/llm` (per-provider up/down + which is active); the dashboard renders it
 with in-use / stand-by / down / not-configured states.
 
+**Consumers:** gateway, planner, summarizer (target inference), and — when
+`ADM_RED_LLM` / `ADM_GREEN_LLM` are set — `redteam_agent` (adaptive mutation)
+and `greenteam_agent` (triage + SOC summary). See [ADR-008](008-llm-red-green-teams.md).
+
 ## Consequences
 
 - The trimmed stack (~400 MB, no Ollama) fits the 1 GB micro with headroom.

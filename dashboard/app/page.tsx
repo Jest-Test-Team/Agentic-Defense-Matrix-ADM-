@@ -316,6 +316,37 @@ export default function Page() {
           {sessions.length === 0 && <div className="feed-row muted">{t.noSessions}</div>}
         </div>
 
+        <h2 className="section">{t.attackChains}</h2>
+        <div className="panel">
+          <div className="feed-row muted" style={{ fontWeight: 600 }}>
+            <span style={{ width: 110 }}>{t.chainStatus}</span>
+            <span style={{ width: 70 }}>{t.chainSteps}</span>
+            <span>{t.chainStrategy}</span>
+            <span className="out">{t.chainSummary}</span>
+          </div>
+          {chains.map((c) => (
+            <div
+              className="feed-row clickable"
+              key={c.id}
+              title={t.clickHint}
+              onClick={() => openChain(c.id)}
+            >
+              <span className={`tag ${c.status === "contained" ? "green" : "red"}`} style={{ width: 110 }}>
+                {c.status}
+              </span>
+              <span className="tech" style={{ width: 70 }}>{c.landed_steps}</span>
+              <span className="detail">
+                {(c.technique_path ?? []).join(" → ") || "—"}
+                {c.strategy ? <span className="muted"> · {c.strategy}</span> : ""}
+              </span>
+              <span className="out muted" style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {c.remediation_summary || "—"}
+              </span>
+            </div>
+          ))}
+          {chains.length === 0 && <div className="feed-row muted">{t.chainNone}</div>}
+        </div>
+
         <AttackMatrix t={t} />
 
         <Settings cfg={cfg} t={t} />
@@ -333,7 +364,13 @@ function DetailModal({ modal, t, onClose }: { modal: NonNullable<Modal>; t: Dict
     <div className="modal-back" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span>{modal.kind === "svc" ? modal.svc.name : modal.title}</span>
+          <span>
+            {modal.kind === "svc"
+              ? modal.svc.name
+              : modal.kind === "chain"
+              ? t.chainDetail
+              : modal.title}
+          </span>
           <button className="modal-x" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
@@ -347,6 +384,28 @@ function DetailModal({ modal, t, onClose }: { modal: NonNullable<Modal>; t: Dict
               <div className="kv-row"><span className="k">{t.category}</span><span className="v">{t.cat[modal.svc.category] ?? modal.svc.category}</span></div>
               <p className="modal-detail">{modal.svc.detail}</p>
               {modal.svc.hint && <div className="modal-hint">{modal.svc.hint}</div>}
+            </div>
+          ) : modal.kind === "chain" ? (
+            <div>
+              <div className="kv" style={{ marginBottom: 12 }}>
+                <div className="kv-row"><span className="k">{t.chainStatus}</span><span className="v">{modal.chain.status}</span></div>
+                <div className="kv-row"><span className="k">{t.chainStrategy}</span><span className="v">{modal.chain.strategy || "—"}</span></div>
+                <div className="kv-row"><span className="k">{t.chainSummary}</span><span className="v">{modal.chain.remediation_summary || "—"}</span></div>
+                <div className="kv-row"><span className="k">{t.chainSteps}</span><span className="v">{(modal.chain.technique_path ?? []).join(" → ") || "—"}</span></div>
+              </div>
+              {modal.steps.map((s) => (
+                <div className="feed-row" key={s.id}>
+                  <span className="tech" style={{ width: 40 }}>#{s.step_index}</span>
+                  <span className="tech" style={{ width: 80 }}>{s.technique}</span>
+                  <span className={`out ${s.outcome}`}>{s.outcome}</span>
+                  <span className="detail">
+                    <span className="muted">{t.chainMutationSource}: {s.mutation_source}</span>
+                    {s.strategy_reason ? <span> · {s.strategy_reason}</span> : ""}
+                    {s.payload_preview ? <span className="muted"> · {t.chainPayload}: {s.payload_preview}</span> : ""}
+                  </span>
+                </div>
+              ))}
+              {modal.steps.length === 0 && <div className="muted">{t.noneYet}</div>}
             </div>
           ) : modal.rows.length === 0 ? (
             <div className="muted" style={{ padding: "8px 2px" }}>{t.noneYet}</div>
@@ -465,13 +524,17 @@ function EventRow({ ev }: { ev: BattleEvent }) {
   const name = ev.technique ? TECH_NAME[ev.technique] ?? "" : "";
   const variant = ev.variant || ev.technique || ev.kind || "";
   const mutation = ev.labels?.mutation;
+  const chainStep = ev.labels?.chain_step;
+  const summary = ev.labels?.summary;
   return (
-    <div className="feed-row" title={ev.detail || ""}>
+    <div className="feed-row" title={ev.detail || summary || ""}>
       <span className={`tag ${tag}`}>{(ev.team || "?").toUpperCase()}</span>
       <span className="tech" style={{ whiteSpace: "nowrap" }}>{variant}</span>
       <span className="detail">
         {name || ev.detail || ""}
         {mutation ? <span className="muted"> · {mutation}</span> : ""}
+        {chainStep != null && chainStep !== "" ? <span className="muted"> · step {chainStep}</span> : ""}
+        {summary ? <span className="muted"> · {summary}</span> : ""}
       </span>
       <span className={`out ${ev.outcome || ""}`}>{ev.outcome || ""}</span>
     </div>

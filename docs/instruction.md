@@ -159,6 +159,7 @@ The Rust analysis engine powers the dashboard and exposes the live telemetry:
 ```bash
 curl https://api.dennisleehappy.org/api/stats        # scoreboard (block/detection/landing, MTTR, residual risk)
 curl https://api.dennisleehappy.org/api/timeline      # recent attack→remediation sessions
+curl https://api.dennisleehappy.org/api/chains        # successful attack chains (+ /api/chains/:id)
 curl https://api.dennisleehappy.org/api/system        # every stack component's health + hints
 curl https://api.dennisleehappy.org/api/llm           # LLM providers: Groq (primary) / X.AI (fallback), which is active
 curl https://api.dennisleehappy.org/api/latency       # δ (detection) & κ (containment) distributions + CDF

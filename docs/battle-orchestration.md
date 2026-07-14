@@ -114,7 +114,7 @@ on-box containers instead of managed clouds.
                     │              📊 ANALYSIS (Rust/axum)          │
                     │  POST /ingest  ── durable ──►  Postgres        │
                     │                └─ index ────►  Elasticsearch   │
-                    │  GET /api/stats /api/timeline /api/stream(SSE) │
+                    │  GET /api/stats /api/timeline /api/chains /api/stream(SSE) │
                     │  GET /  ── static dashboard (db/be/fe) ───────►│
                     └───────▲───────────────▲───────────────▲────────┘
    battle events (JSON)     │               │               │
@@ -233,8 +233,10 @@ Crate `analysis/` (axum). Single binary = backend + static frontend.
 - `POST /ingest` — accept a `BattleEvent`; write row to Postgres `battle_events`
   and index the same doc into Elasticsearch `adm-battle-events`. Also re-publishes
   to the SSE hub.
-- `GET /api/timeline?limit=` — recent correlated sessions (attack + defense +
+- `GET /api/timeline?limit=` — recent correlated sessions (attack +
   remediation joined on `session_id`) from Postgres.
+- `GET /api/chains?status=landed&limit=` — successful attack chains (landed +
+  contained); `GET /api/chains/:id` returns steps + strategy + remediation summary.
 - `GET /api/stats` — scoreboard: attacks sent, blocked, landed, detected,
   remediated; **block rate**, **detection rate**, **mean time to remediate
   (MTTR)**; per-technique and per-mutation breakdown (Elasticsearch aggregations,
@@ -279,6 +281,19 @@ open http://localhost:8090   # dashboard
 
 - **Makefile targets:** `battle-up`, `battle-down`, `battle-logs`,
   `battle-build`, and `build-battle` (compiles the two Go services locally).
+
+## LLM env for battle overlay
+
+In addition to gateway `ADM_LLM_*`, set on red/green (see
+`deploy/docker-compose.battle.yml`):
+
+| Var | Default (battle) | Meaning |
+|-----|------------------|---------|
+| `ADM_RED_LLM` | `true` | Adaptive mutate after landing |
+| `ADM_GREEN_LLM` | `true` | Triage + SOC summary |
+| `ADM_CHAIN_MAX_STEPS` | `5` | Cap adaptive follow-ups |
+
+See ADR-008 for rationale (landing-only LLM calls).
 
 ### Startup ordering & health
 `analysis` waits for Postgres + Elasticsearch healthchecks; `redteam`/`greenteam`

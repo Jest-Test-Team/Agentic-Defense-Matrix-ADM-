@@ -60,12 +60,12 @@ type pendingStep struct {
 }
 
 type campaign struct {
-	cfg      config
-	emitter  *battle.Emitter
-	llm      *llmops.Client
-	client   *http.Client
-	pending  chan pendingStep
-	mu       sync.Mutex
+	cfg     config
+	emitter *battle.Emitter
+	llm     *llmops.Client
+	client  *http.Client
+	pending chan pendingStep
+	mu      sync.Mutex
 }
 
 func main() {
@@ -164,10 +164,14 @@ func (c *campaign) attack(ctx context.Context, v redteam.AttackVariant, chainID 
 		"lang":            v.Lang,
 		"tag":             v.Tag,
 		"endpoint":        string(v.Endpoint),
-		"chain_id":        chainID,
-		"chain_step":      strconv.Itoa(step),
 		"mutation_source": source,
 		"payload_preview": preview,
+	}
+	// Persist chains only for landings and LLM follow-ups — not every blocked corpus fire.
+	trackChain := chainID != "" && (outcome == battle.OutcomeAllowed || source == "llm_adaptive" || step > 0)
+	if trackChain {
+		labels["chain_id"] = chainID
+		labels["chain_step"] = strconv.Itoa(step)
 	}
 	if strategy != "" {
 		labels["strategy"] = strategy
@@ -194,6 +198,11 @@ func (c *campaign) attack(ctx context.Context, v redteam.AttackVariant, chainID 
 	if step+1 >= c.cfg.maxSteps {
 		log.Printf("redteam: chain %s hit max steps (%d)", chainID, c.cfg.maxSteps)
 		return
+	}
+
+	// Ensure a stable chain id once we land (even if we deferred labels above).
+	if chainID == "" {
+		chainID = uuid.NewString()
 	}
 
 	next, err := c.llm.AdaptiveMutate(ctx, llmops.AttackContext{

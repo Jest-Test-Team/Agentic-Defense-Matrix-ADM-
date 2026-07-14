@@ -104,7 +104,9 @@ flowchart TB
     gr -->|revoke · restart| gw
     rt & gw & gr -->|battle events| an
     gw & siem --> redis
-    gw & agents -->|inference| groq
+    gw & agents -->|target inference| groq
+    rt -->|"adaptive mutate<br/>(landings only)"| groq
+    gr -->|"triage + SOC summary<br/>(landings only)"| groq
     an -->|durable write| neon
     an -->|index| bonsai
 
@@ -130,6 +132,42 @@ flowchart TB
 runs the containers; Postgres, Elasticsearch, the LLM, and image builds are
 offloaded to free managed clouds. Full detail:
 **[Live Deployment — Infrastructure & Services](docs/architecture/live-deployment.md)**.
+
+---
+
+## Teams × hosted LLM — who calls inference, and when
+
+All hosted inference uses the same client (`pkg/ollama` → Groq primary, X.AI
+fallback). Flags: `ADM_RED_LLM`, `ADM_GREEN_LLM`. See [ADR-008](docs/adr/008-llm-red-green-teams.md).
+
+| Team | Role in the exercise | Uses hosted LLM? | When / for what | Does **not** use LLM for |
+|------|----------------------|------------------|-----------------|---------------------------|
+| 🔴 **Red** (`redteam_agent`) | Attacker | **Yes, optionally** | Only after a **landing** (`outcome=allowed`): `AdaptiveMutate` picks next RT technique + mutated payload; continues the same `chain_id` (≤ `ADM_CHAIN_MAX_STEPS`) | Day-to-day corpus fire (deterministic 10k variants); judging “blocked vs allowed” (HTTP status / body heuristics) |
+| 🔵 **Blue** (gateway, SIEM, OPA, agents) | Target + defender | **Yes** (gateway / planner / summarizer) | When a request **passes** the L7 semantic + policy boundary and needs a chat/plan/summary completion | **Boundary detection itself** — semantic analyzer + OPA are local, no LLM; SIEM correlation is rule-based |
+| 🟢 **Green** (`greenteam_agent`) | Remediator | **Yes, optionally** | On each landing: `TriageRemediation` → severity, whether to revoke, which agent(s) to restart, SOC `summary` text for the dashboard | Executing revoke/restart (still HTTP + Docker API); choosing infra containers (hard whitelist) |
+
+**Quota rule of thumb:** corpus attacks at ~500 ms do **not** burn Groq tokens; only landings (and green triage for those landings) do. LLM failure → red skips adaptive follow-up; green falls back to always-revoke + restart by attack target.
+
+---
+
+## Compromise boundary — what ADM treats as “landed / compromised”
+
+ADM scores **session-scoped landings**, not “the whole fleet is owned.” Boundaries:
+
+| Verdict | Concrete signal | Meaning | What happens next |
+|---------|-----------------|---------|-------------------|
+| **Blocked (not compromised)** | Gateway returns 4xx / empty / policy-deny; red event `outcome=blocked` | Attack died at the **API boundary** (semantic and/or OPA). Session is not treated as compromised. | Counted on scoreboard; no green remediation; no attack-chain upsert for ordinary blocked corpus shots |
+| **Landed (session compromised)** | Red classifies `outcome=allowed` (2xx with content that is not an explicit block) | The request **reached the target path** (and often the hosted LLM). That **`session_id` is treated as compromised** for remediation purposes. | Red may start/continue an **attack chain**; green triages that session; analysis stores the chain |
+| **Detected** | Blue/SIEM `kind=defense`, `outcome=detected` | Correlation / alert without necessarily proving L7 allow | Raises detection rate; green may still act if a concurrent landing exists |
+| **Contained** | Green `kind=remediation` with `revoked` / `restarted` (chain `status=contained`) | Compromised **session** revoked and/or labelled agent container(s) restarted | Residual risk clears for that session; chain gets `remediation_summary` |
+| **Residual risk** | Landed session with **no** remediation yet | Still treated as an open compromise for that session | Dashboard residual-risk tile |
+
+**Hard scope of “compromised” (important):**
+
+- **In scope:** the offending **`session_id`**, and agent containers labelled `adm.role=agent` that triage names (`planner` / `executor` / `summarizer` only).
+- **Out of scope / never treated as kill targets:** gateway, SIEM, Redis, analysis, Neon, Caddy, OPA, infra volumes — green **must not** restart these even if the LLM suggests them.
+- **Not automatic “host compromised”:** a landing does **not** mean the OCI VM or Postgres is owned; it means the **agent session** crossed the L7 allow path and green must cut that session’s blast radius.
+- **Attack chains:** a successful chain is history of one adaptive campaign (`chain_id`); dashboard **Successful attack chains** lists landings that earned durable rows in `attack_chains`.
 
 ---
 
@@ -159,7 +197,7 @@ Blue Team detection + Green Team isolation:
 |-----------|-----------|---------|
 | API Gateway | Go (Echo) | Request interception, semantic analysis, routing |
 | Agent Services | Go + gRPC | Planner, Executor, Summarizer (separate containers) |
-| LLM Backend | Ollama | Local inference: llama3.1:8b, qwen2.5:7b, mistral |
+| LLM Backend | Groq → X.AI (live) / Ollama (local A1) | Target inference + red adaptive mutate + green triage |
 | Endpoint Watchdog | Rust | macOS ES + Windows WFP syscall interception |
 | SIEM Engine | Go | Correlation engine + Redis Streams |
 | Policy Engine | OPA + SPIRE | Rego policies + workload identity |
@@ -402,15 +440,47 @@ Gateway includes built-in auto-update client that polls GitHub Releases:
 
 ## Deployment
 
-### Docker Compose (Recommended)
+### Local battle stack (red + blue + green + analysis)
+
+Prereqs: Docker, Neon `DATABASE_URL` (or local Postgres), Groq key (and optional X.AI fallback).
 
 ```bash
-# Start full stack
-docker compose up -d
+# Env (example)
+export DATABASE_URL='postgres://…@….neon.tech/adm?sslmode=require'
+export ADM_LLM_MODE=openai
+export ADM_LLM_BASE_URL=https://api.groq.com/openai/v1
+export ADM_LLM_API_KEY=gsk_…
+export ADM_MODEL=llama-3.1-8b-instant          # or your Groq model id
+export ADM_LLM_FALLBACK_BASE_URL=https://api.x.ai/v1   # optional
+export ADM_LLM_FALLBACK_API_KEY=xai-…                  # optional
+export ADM_RED_LLM=true
+export ADM_GREEN_LLM=true
+export ADM_CHAIN_MAX_STEPS=5
 
-# Start with development mode
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Base stack + battle overlay (redteam, greenteam, analysis)
+make battle-up
+make battle-logs          # follow red / green / analysis
+# Analysis API: http://localhost:8090
+# Gateway:      http://localhost:8080
+# Chains:       curl -s 'http://localhost:8090/api/chains?status=landed' | jq .
+make battle-down
 ```
+
+Base-only (no continuous red/green):
+
+```bash
+docker compose up -d
+# or: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+### Oracle Cloud (live demo path)
+
+1. Set GitHub secrets: OCI credentials, `ADM_SSH_PUBLIC_KEY`, **`GROQ_API_KEY`** (and optional `XAI_API_KEY`), Neon `DATABASE_URL` / Elastic URL as wired by Terraform / `battle.env`.
+2. Run **Terraform OCI** workflow (`.github/workflows/terraform-oci.yml`) → `apply`.
+3. Cloud-init pulls GHCR images and runs `battle-up.sh` on the micro.
+4. Point DNS + `ADM_API_DOMAIN` for Caddy HTTPS; open the Pages dashboard with `?api=https://your-api-host`.
+
+Day-2 ops: [docs/instruction.md](docs/instruction.md) (`status.sh` / `update.sh` / smoke curls including `/api/chains`).
 
 ### Platform Installers
 
@@ -420,7 +490,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 | macOS | `deploy/packaging/macos/install.sh` | launchd |
 | Linux | `deploy/packaging/linux/install.sh` | systemd |
 
-### Oracle Cloud Terraform
+### Oracle Cloud Terraform (secrets)
 
 GitHub Actions workflow: `.github/workflows/terraform-oci.yml`
 
@@ -433,6 +503,7 @@ Required repository secrets:
 | `OCI_FINGERPRINT` | OCI API key fingerprint |
 | `OCI_PRIVATE_KEY` | PEM contents of the OCI API private key |
 | `ADM_SSH_PUBLIC_KEY` | SSH public key installed on the ADM instance |
+| `GROQ_API_KEY` | Primary hosted LLM (wired to `ADM_LLM_API_KEY`) |
 
 Optional repository settings:
 
